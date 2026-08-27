@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Запуск программы</title>
+  <title>Guard Island</title>
   <style>
     html, body { margin: 0; height: 100%; background: transparent; }
     body {
@@ -25,19 +25,20 @@
       border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.35); color: #fff; font: inherit;
       outline: none;
     }
-    input:focus { border-color: rgba(252,114,255,.6); }
+    input:focus { border-color: #e67e22; }
     .err { color: #ff4d6d; font-size: 12px; min-height: 16px; margin: 8px 0; }
     .row { display: flex; gap: 8px; }
     button { flex: 1; height: 40px; border: 0; border-radius: 14px; cursor: pointer; font-weight: 700; }
     .ok { background: #e67e22; color: #fff; }
     .no { background: #1a1a1a; color: #e4e6e8; border: 1px solid #353a42; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Разрешить запуск?</h1>
+    <h1 id="title">Разрешить запуск?</h1>
     <div class="name" id="name"></div>
-    <div class="hint">Введите пароль, чтобы разрешить запуск, или нажмите «Отменить».</div>
+    <div class="hint" id="hint">Введите пароль, чтобы разрешить запуск, или нажмите «Отменить».</div>
     <input id="pw" type="password" placeholder="Пароль" autocomplete="off" />
     <div class="err" id="err"></div>
     <div class="row">
@@ -47,9 +48,24 @@
   </div>
   <script>
     window.guard.onPrompt((d) => {
-      document.getElementById('name').textContent = (d.name || '') + (d.path ? '\n' + d.path : '');
-      document.getElementById('err').textContent = d.error || (d.testMode ? 'Тест: программа на паузе' : '');
-      document.getElementById('pw').focus();
+      const quit = d.mode === 'quit';
+      const has = d.hasPassword !== false;
+      document.getElementById('title').textContent = quit
+        ? (has ? 'Выйти из Guard Island?' : 'Выход заблокирован')
+        : 'Разрешить запуск?';
+      document.getElementById('name').textContent = quit
+        ? (has ? 'Тот же пароль, что на запуск программ' : 'Пароль запуска не задан')
+        : ((d.name || '') + (d.path ? '\n' + d.path : ''));
+      document.getElementById('hint').textContent = quit
+        ? (has
+          ? 'Без этого пароля приложение не завершится.'
+          : 'Задайте пароль запуска в Настройки → Пароли. Пока его нет, выйти нельзя.')
+        : 'Введите пароль, чтобы разрешить запуск, или нажмите «Отменить».';
+      document.getElementById('err').textContent = d.error || (!quit && d.testMode ? 'Тест: программа на паузе' : '');
+      document.getElementById('pw').classList.toggle('hidden', quit && !has);
+      document.getElementById('ok').textContent = quit ? (has ? 'Выйти' : 'Открыть настройки') : 'Разрешить';
+      document.getElementById('no').textContent = 'Отменить';
+      if (!(quit && !has)) document.getElementById('pw').focus();
     });
     document.getElementById('ok').onclick = () => window.guard.submit(document.getElementById('pw').value);
     document.getElementById('no').onclick = () => window.guard.cancel();

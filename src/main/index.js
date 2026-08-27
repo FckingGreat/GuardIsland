@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell, screen, powerMonitor } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -35,6 +35,8 @@ let startedAt = Date.now();
 let remoteTimer = null;
 let sessionUnlocked = false;
 let saveBoundsTimer = null;
+let allowQuit = false;
+let promptKind = 'process';
 const sessionAllowedPids = new Set();
 
 const MODEL_FILES = [
@@ -256,12 +258,13 @@ function createPrompt(data) {
   closePrompt();
   promptWin = new BrowserWindow({
     width: 420,
-    height: 280,
+    height: data?.mode === 'quit' ? 300 : 280,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
+    closable: true,
     backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'prompt.js'),
@@ -273,7 +276,14 @@ function createPrompt(data) {
   promptWin.setAlwaysOnTop(true, 'screen-saver');
   promptWin.loadFile(path.join(__dirname, '..', 'renderer', 'prompt.html'));
   promptWin.webContents.on('did-finish-load', () => {
-    promptWin.webContents.send('prompt-data', data);
+    if (promptWin && !promptWin.isDestroyed()) promptWin.webContents.send('prompt-data', data);
+  });
+  const win = promptWin;
+  win.on('closed', () => {
+    if (promptWin === win) {
+      promptWin = null;
+      if (promptKind === 'quit') promptKind = 'process';
+    }
   });
 }
 
@@ -282,8 +292,45 @@ function closePrompt() {
     clearTimeout(promptTimer);
     promptTimer = null;
   }
-  if (promptWin && !promptWin.isDestroyed()) promptWin.close();
+  const win = promptWin;
   promptWin = null;
+  if (win && !win.isDestroyed()) win.close();
+}
+
+function requestQuit() {
+  if (allowQuit) {
+    app.quit();
+    return;
+  }
+  hideTrayMenu();
+  const hasPassword = Boolean(store.secretsMeta().hasProcessPassword);
+  promptKind = 'quit';
+  createPrompt({
+    mode: 'quit',
+    hasPassword,
+    name: hasPassword ? 'Тот же пароль, что на запуск программ' : 'Пароль не задан'
+  });
+}
+
+function confirmQuit() {
+  allowQuit = true;
+  promptKind = 'process';
+  closePrompt();
+  app.quit();
+}
+
+function cancelQuitPrompt() {
+  promptKind = 'process';
+  closePrompt();
+  if (pendingProc) {
+    const name = pendingProc.name || path.basename(pendingProc.path || '');
+    createPrompt({
+      name,
+      path: pendingProc.path || '',
+      pid: pendingProc.pid,
+      testMode: isTest()
+    });
+  }
 }
 
 function openFace(mode) {
@@ -755,7 +802,7 @@ function wireIpc() {
     }
     if (act === 'hide') { store.set({ islandVisible: false }); applyConfig(); }
     if (act === 'disarm') { store.set({ armed: false }); applyConfig(); }
-    if (act === 'quit') app.quit();
+    if (act === 'quit') requestQuit();
   });
   ipcMain.on('open-tailscale', () => shell.openExternal('https://tailscale.com/download/windows'));
   ipcMain.on('open-url', (_e, url) => {
@@ -765,6 +812,32 @@ function wireIpc() {
     }
   });
   ipcMain.on('prompt-submit', (_e, password) => {
+    if (promptKind === 'quit') {
+      if (!store.secretsMeta().hasProcessPassword) {
+        cancelQuitPrompt();
+        createSettings();
+        return;
+      }
+      const kind = store.whichPassword(password);
+      if (kind === 'panic') {
+        cancelQuitPrompt();
+        performAction('lock', 'Введён пароль паники — блокировка сессии. Данные НЕ удаляются.');
+        return;
+      }
+      if (kind === 'allow' || kind === 'app') {
+        confirmQuit();
+        return;
+      }
+      if (promptWin && !promptWin.isDestroyed()) {
+        promptWin.webContents.send('prompt-data', {
+          mode: 'quit',
+          hasPassword: true,
+          name: 'Тот же пароль, что на запуск программ',
+          error: 'Неверный пароль'
+        });
+      }
+      return;
+    }
     const kind = store.whichPassword(password);
     if (kind === 'panic') {
       closePrompt();
@@ -783,7 +856,13 @@ function wireIpc() {
       });
     }
   });
-  ipcMain.on('prompt-cancel', () => denyProcess('отмена'));
+  ipcMain.on('prompt-cancel', () => {
+    if (promptKind === 'quit') {
+      cancelQuitPrompt();
+      return;
+    }
+    denyProcess('отмена');
+  });
   ipcMain.on('face-unknown', () => {
     if (Date.now() - lastFaceAlarm < 4000) return;
     lastFaceAlarm = Date.now();
@@ -812,11 +891,18 @@ app.whenReady().then(() => {
   wireIpc();
   createTray();
   createSettings();
+  powerMonitor.on('shutdown', () => { allowQuit = true; });
   log.info('started', { engine: bridge.engine, userData: app.getPath('userData') });
 });
 
 app.on('window-all-closed', (e) => {
   e.preventDefault();
+});
+
+app.on('before-quit', (e) => {
+  if (allowQuit) return;
+  e.preventDefault();
+  requestQuit();
 });
 
 app.on('will-quit', () => {
