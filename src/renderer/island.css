@@ -1,0 +1,90 @@
+:root {
+  --bg: #000;
+  --line: #353a42;
+  --text: #e4e6e8;
+  --muted: #9ca3ab;
+  --accent: #e67e22;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  user-select: none;
+  color: var(--text);
+}
+.island {
+  width: 100%; height: 100%;
+  background: #000;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+}
+.compact {
+  display: none;
+  height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.island.collapsed .compact { display: flex; }
+.island.collapsed .panel { display: none; }
+.logo {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.logo.lg { width: 28px; height: 28px; }
+.brand { font-size: 12px; font-weight: 700; }
+.chip {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  background: #0d0d0d;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.panel { padding: 12px 14px 14px; }
+.head { display: flex; align-items: center; gap: 10px; }
+.who { flex: 1; min-width: 0; }
+.title { font-size: 14px; font-weight: 700; }
+.sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #0d0d0d;
+  color: var(--text);
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+}
+.fold:hover { border-color: var(--accent); color: var(--accent); }
+.event {
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.actions { display: flex; gap: 8px; }
+.actions button {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #0d0d0d;
+  color: var(--text);
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+}
+.actions .pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.actions .ghost { margin-left: auto; color: var(--muted); }
+.actions button:hover { border-color: #6b7280; }

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+out/
+*.node
+.DS_Store
+Thumbs.db
+user-data/
+*.log
+.env
+.tools/
+models/*.bin
+models/*.json
+!models/.gitkeep

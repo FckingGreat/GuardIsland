@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Guard Island</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="island.css" />
+</head>
+<body>
+  <div id="island" class="island collapsed">
+    <div class="compact" id="pill">
+      <img class="logo" src="logo.png" alt="" />
+      <span class="brand">Guard Island</span>
+      <span class="chip" id="chip">выкл</span>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <img class="logo lg" src="logo.png" alt="" />
+        <div class="who">
+          <div class="title">Guard Island</div>
+          <div class="sub" id="sub">Охрана выключена</div>
+        </div>
+        <button class="fold" id="homeBtn">Свернуть</button>
+      </div>
+      <div class="event" id="toast">Нет событий</div>
+      <div class="actions">
+        <button class="pri" id="armBtn">Включить охрану</button>
+        <button id="setBtn">Настройки</button>
+        <button id="lockBtn">Блок</button>
+        <button class="ghost" id="hideBtn">Скрыть</button>
+      </div>
+    </div>
+  </div>
+  <script src="island.js"></script>
+</body>
+</html>

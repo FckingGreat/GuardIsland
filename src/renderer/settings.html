@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <title>Guard Island</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="tb">
+    <img class="tb-logo" src="logo.png" alt="" />
+    <span class="tb-name">Guard Island</span>
+    <div class="tb-drag"></div>
+    <div class="wb">
+      <button class="wn m" id="minBtn" title="Свернуть">─</button>
+      <button class="wn x" id="maxBtn" title="Развернуть">□</button>
+      <button class="wn c" id="closeBtn" title="Закрыть">×</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="sb">
+      <nav class="sb-nav" id="nav">
+        <button class="ni a" data-tab="home">Обзор</button>
+        <button class="ni" data-tab="face">Лицо</button>
+        <button class="ni" data-tab="hotkey">Клавиша</button>
+        <button class="ni" data-tab="usb">USB</button>
+        <button class="ni" data-tab="proc">Программы</button>
+        <button class="ni" data-tab="files">Аномалии</button>
+        <button class="ni" data-tab="remote">Связь</button>
+        <button class="ni" data-tab="panic">Пароли</button>
+        <button class="ni" data-tab="about">О приложении</button>
+      </nav>
+      <div class="sb-ft">
+        <div class="status"><span class="cd" id="cd"></span><span id="cl">Охрана выкл</span></div>
+        <button class="btn btn-pri" id="armHead">Включить охрану</button>
+        <button class="btn" id="hideIslandBtn">Скрыть остров</button>
+        <a class="tg" id="tgLink" href="https://t.me/fcking_great_bot">Telegram @fcking_great_bot</a>
+      </div>
+    </aside>
+
+    <div class="mn">
+      <section id="home" class="tab on">
+        <h1>Обзор</h1>
+        <p class="lead">Клик по капсуле сверху раскрывает остров. Кнопка «Свернуть» возвращает маленькую капсулу. «Скрыть» убирает её полностью — вернуть из трея.</p>
+        <label class="row-card">
+          <div><b>Охрана</b><span>Пока выкл — ничего не блокирует и не гасит ПК</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="armed" /><i></i></span>
+        </label>
+        <label class="row-card">
+          <div><b>Тестовый режим</b><span>События только в лог, без shutdown и lock</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="testMode" /><i></i></span>
+        </label>
+        <label class="row-card">
+          <div><b>Показывать остров</b><span>Маленькая капсула у верхнего края экрана</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="islandVisible" /><i></i></span>
+        </label>
+        <label class="row-card">
+          <div><b>Автозапуск</b><span>Старт вместе с Windows, видно в автозагрузке</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="autostart" /><i></i></span>
+        </label>
+        <p class="meta" id="meta"></p>
+      </section>
+
+      <section id="face" class="tab">
+        <h1>Лицо</h1>
+        <p class="lead">Ваше лицо хранится только на этом ПК. Чужой в кадре — действие ниже.</p>
+        <label class="row-card">
+          <div><b>Следить за камерой</b><span>Нужна веб-камера и запись лица</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="faceGuard" /><i></i></span>
+        </label>
+        <div class="split">
+          <label class="field">Если чужое лицо
+            <select class="inp" data-cfg="faceAction">
+              <option value="lock">Блокировка Windows</option>
+              <option value="notify">Только уведомление</option>
+              <option value="shutdown">Выключение</option>
+            </select>
+          </label>
+          <button id="enrollBtn" class="btn btn-pri">Записать моё лицо</button>
+        </div>
+        <p class="hint" id="faceHint"></p>
+      </section>
+
+      <section id="hotkey" class="tab">
+        <h1>Клавиша</h1>
+        <p class="lead">Глобальная клавиша. В тесте — только сообщение на острове.</p>
+        <label class="row-card">
+          <div><b>Клавиша включена</b><span>Работает в фоне</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="hotkeyGuard" /><i></i></span>
+        </label>
+        <div class="split">
+          <label class="field">Клавиша
+            <select class="inp" data-cfg="hotkey">
+              <option>Insert</option>
+              <option>Pause</option>
+              <option>Scrolllock</option>
+              <option>F9</option>
+              <option>F10</option>
+              <option>F12</option>
+              <option>End</option>
+            </select>
+          </label>
+          <label class="field">Действие
+            <select class="inp" data-cfg="hotkeyAction">
+              <option value="shutdown">Выключение</option>
+              <option value="lock">Блокировка</option>
+              <option value="notify">Только уведомление</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section id="usb" class="tab">
+        <h1>USB</h1>
+        <p class="lead">Новая флешка, мышь или диск. Уже вставленные при старте не считаются.</p>
+        <label class="row-card">
+          <div><b>Реагировать на подключение</b></div>
+          <span class="switch"><input type="checkbox" data-cfg="usbGuard" /><i></i></span>
+        </label>
+        <label class="field">Действие
+          <select class="inp" data-cfg="usbAction">
+            <option value="shutdown">Выключение</option>
+            <option value="lock">Блокировка</option>
+            <option value="notify">Только уведомление</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="proc" class="tab">
+        <h1>Программы</h1>
+        <p class="lead">Новый exe сразу ставится на паузу, пока не введёте пароль. Windows, WSL и Node не трогаем. В ослабленном режиме спрашиваем только сомнительные запуски (Загрузки, флешки, одиночные exe с рабочего стола) — без пачки окон пароля.</p>
+        <label class="row-card">
+          <div><b>Спрашивать пароль на новый процесс</b></div>
+          <span class="switch"><input type="checkbox" data-cfg="processGate" /><i></i></span>
+        </label>
+        <label class="field">Режим проверки
+          <select class="inp" data-cfg="processGateMode">
+            <option value="relaxed">Ослабленный — система, Node, WSL и установленные программы без пароля</option>
+            <option value="strict">Строгий — спрашивать почти всё, кроме Windows / WSL / Node</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="files" class="tab">
+        <h1>Аномалии</h1>
+        <p class="lead">Desktop, Documents, Downloads и Telegram: пачки файлов и несколько ChatExport сразу.</p>
+        <label class="row-card">
+          <div><b>Включить наблюдение</b></div>
+          <span class="switch"><input type="checkbox" data-cfg="fileAnomaly" /><i></i></span>
+        </label>
+        <div class="split">
+          <label class="field">Порог файлов
+            <input class="inp" type="number" min="10" max="500" data-cfg="fileBurstCount" />
+          </label>
+          <label class="field">Действие
+            <select class="inp" data-cfg="fileAction">
+              <option value="lock">Блокировка</option>
+              <option value="notify">Только уведомление</option>
+              <option value="shutdown">Выключение</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section id="remote" class="tab">
+        <h1>Связь</h1>
+        <p class="lead">Скрытого бэкдора нет. Доступ через Tailscale на вашем аккаунте.</p>
+        <div class="remote-box" id="remoteBox">Проверяем Tailscale…</div>
+        <div class="split">
+          <button id="tsRefresh" class="btn">Обновить</button>
+          <button id="tsUp" class="btn btn-pri">Поднять Tailscale</button>
+          <button id="tsSite" class="btn">Скачать Tailscale</button>
+        </div>
+        <label class="row-card">
+          <div><b>Следить, чтобы Tailscale был запущен</b><span>Проверка раз в минуту</span></div>
+          <span class="switch"><input type="checkbox" data-cfg="remoteWatchdog" /><i></i></span>
+        </label>
+      </section>
+
+      <section id="panic" class="tab">
+        <h1>Пароли</h1>
+        <p class="lead">Сменить логин или любой пароль можно только после пароля настроек или Windows Hello. Сохранённые значения посмотреть нельзя.</p>
+        <form data-kind="username" class="wide">
+          <h3>Логин входа в приложение</h3>
+          <input class="inp" id="loginUserField" type="text" placeholder="новый логин" autocomplete="off" />
+          <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
+          <div class="form-actions">
+            <button type="button" class="btn" data-hello>Windows Hello</button>
+            <button class="btn btn-pri">Сохранить логин</button>
+          </div>
+          <span class="ok" data-flag="hasAccount"></span>
+        </form>
+        <div class="grid">
+          <form data-kind="loginPassword">
+            <h3>Пароль входа</h3>
+            <input class="inp" type="password" placeholder="новый пароль входа" autocomplete="off" />
+            <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
+            <div class="form-actions">
+              <button type="button" class="btn" data-hello>Windows Hello</button>
+              <button class="btn btn-pri">Сохранить</button>
+            </div>
+            <span class="ok" data-flag="hasLoginPassword"></span>
+          </form>
+          <form data-kind="appPin">
+            <h3>Пароль настроек</h3>
+            <input class="inp" type="password" placeholder="новый пароль настроек" autocomplete="off" />
+            <input class="inp" type="password" data-confirm placeholder="текущий пароль настроек" autocomplete="off" />
+            <div class="form-actions">
+              <button type="button" class="btn" data-hello>Windows Hello</button>
+              <button class="btn btn-pri">Сохранить</button>
+            </div>
+            <span class="ok" data-flag="hasAppPin"></span>
+          </form>
+          <form data-kind="processPassword">
+            <h3>Пароль запуска программ</h3>
+            <input class="inp" type="password" placeholder="новый пароль" autocomplete="off" />
+            <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
+            <div class="form-actions">
+              <button type="button" class="btn" data-hello>Windows Hello</button>
+              <button class="btn btn-pri">Сохранить</button>
+            </div>
+            <span class="ok" data-flag="hasProcessPassword"></span>
+          </form>
+          <form data-kind="panicPassword">
+            <h3>Пароль паники</h3>
+            <input class="inp" type="password" placeholder="новый пароль" autocomplete="off" />
+            <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
+            <div class="form-actions">
+              <button type="button" class="btn" data-hello>Windows Hello</button>
+              <button class="btn btn-pri">Сохранить</button>
+            </div>
+            <span class="ok" data-flag="hasPanicPassword"></span>
+          </form>
+        </div>
+      </section>
+
+      <section id="about" class="tab">
+        <h1>О приложении</h1>
+        <ul class="about">
+          <li>Guard Island — охранный слой для вашего компьютера.</li>
+          <li>Нет вайпа диска и нет скрытого удалённого шелла.</li>
+          <li>Лог: <code id="logPath"></code></li>
+          <li>Контакт: <a href="https://t.me/fcking_great_bot">Telegram @fcking_great_bot</a></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+  <div id="gate" class="gate">
+    <div class="gate-card" id="gateLogin">
+      <img src="logo.png" alt="" />
+      <h2>Вход в Guard Island</h2>
+      <p>Логин и пароль приложения</p>
+      <input class="inp" id="loginUser" type="text" placeholder="логин" autocomplete="username" />
+      <input class="inp" id="loginPass" type="password" placeholder="пароль" autocomplete="current-password" />
+      <p class="gate-err" id="loginErr"></p>
+      <button class="btn btn-pri" id="loginBtn">Войти</button>
+    </div>
+    <div class="gate-card" id="gateSetup" hidden>
+      <img src="logo.png" alt="" />
+      <h2>Создать аккаунт</h2>
+      <p>Эти данные нужны, чтобы открыть приложение</p>
+      <input class="inp" id="setupUser" type="text" placeholder="логин" autocomplete="off" />
+      <input class="inp" id="setupLogin" type="password" placeholder="пароль входа" autocomplete="off" />
+      <input class="inp" id="setupLogin2" type="password" placeholder="повторите пароль входа" autocomplete="off" />
+      <input class="inp" id="setupPin" type="password" placeholder="пароль настроек" autocomplete="off" />
+      <input class="inp" id="setupPin2" type="password" placeholder="повторите пароль настроек" autocomplete="off" />
+      <p class="gate-err" id="setupErr"></p>
+      <button class="btn btn-pri" id="setupBtn">Создать и войти</button>
+    </div>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

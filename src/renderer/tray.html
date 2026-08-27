@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600&display=swap" rel="stylesheet"/>
+  <style>
+    html, body { margin: 0; background: #000; overflow: hidden; }
+    body {
+      font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+      color: #e4e6e8;
+      padding: 6px;
+    }
+    .menu {
+      background: #000;
+      border: 1px solid #353a42;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 0;
+      color: #e4e6e8;
+      padding: 10px 14px;
+      font: 500 13px 'Plus Jakarta Sans', sans-serif;
+      cursor: pointer;
+    }
+    button:hover { background: #1a1a1a; color: #e67e22; }
+    button.danger:hover { color: #dc3545; }
+    hr {
+      border: 0;
+      border-top: 1px solid #353a42;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="menu">
+    <button data-act="settings">Настройки</button>
+    <button data-act="show">Показать остров</button>
+    <button data-act="hide">Скрыть остров</button>
+    <hr />
+    <button data-act="disarm">Снять охрану</button>
+    <hr />
+    <button class="danger" data-act="quit">Выход</button>
+  </div>
+  <script>
+    document.querySelectorAll('button[data-act]').forEach((b) => {
+      b.onclick = () => window.guard.tray(b.dataset.act);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Запуск программы</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; }
+    body {
+      font: 14px/1.4 "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      color: #f6f7fb;
+    }
+    .wrap {
+      height: 100%;
+      padding: 22px 24px;
+      background: #000;
+      border: 1px solid #353a42;
+      border-radius: 12px;
+      box-sizing: border-box;
+    }
+    h1 { font-size: 18px; margin: 0 0 6px; }
+    .name { color: #e67e22; word-break: break-all; font-size: 13px; margin-bottom: 8px; }
+    .hint { color: rgba(255,255,255,.55); font-size: 12px; margin-bottom: 14px; }
+    input {
+      width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.35); color: #fff; font: inherit;
+      outline: none;
+    }
+    input:focus { border-color: rgba(252,114,255,.6); }
+    .err { color: #ff4d6d; font-size: 12px; min-height: 16px; margin: 8px 0; }
+    .row { display: flex; gap: 8px; }
+    button { flex: 1; height: 40px; border: 0; border-radius: 14px; cursor: pointer; font-weight: 700; }
+    .ok { background: #e67e22; color: #fff; }
+    .no { background: #1a1a1a; color: #e4e6e8; border: 1px solid #353a42; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Разрешить запуск?</h1>
+    <div class="name" id="name"></div>
+    <div class="hint">Введите пароль, чтобы разрешить запуск, или нажмите «Отменить».</div>
+    <input id="pw" type="password" placeholder="Пароль" autocomplete="off" />
+    <div class="err" id="err"></div>
+    <div class="row">
+      <button class="ok" id="ok">Разрешить</button>
+      <button class="no" id="no">Отменить</button>
+    </div>
+  </div>
+  <script>
+    window.guard.onPrompt((d) => {
+      document.getElementById('name').textContent = (d.name || '') + (d.path ? '\n' + d.path : '');
+      document.getElementById('err').textContent = d.error || (d.testMode ? 'Тест: программа на паузе' : '');
+      document.getElementById('pw').focus();
+    });
+    document.getElementById('ok').onclick = () => window.guard.submit(document.getElementById('pw').value);
+    document.getElementById('no').onclick = () => window.guard.cancel();
+    document.getElementById('pw').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') window.guard.submit(e.target.value);
+      if (e.key === 'Escape') window.guard.cancel();
+    });
+  </script>
+</body>
+</html>

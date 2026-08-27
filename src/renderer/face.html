@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Камера</title>
+  <style>
+    html, body { margin: 0; background: #0c0d10; color: #f4f4f5;
+      font: 14px/1.4 "Segoe UI Variable", "Segoe UI", sans-serif; }
+    .box { padding: 16px; }
+    video { width: 100%; border-radius: 14px; background: #000; }
+    canvas { display: none; }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
+    button { border: 0; border-radius: 10px; padding: 8px 12px; cursor: pointer; font-weight: 650; }
+    .primary { background: #64d2ff; }
+    .hint { color: #a1a1aa; font-size: 12px; margin-top: 8px; min-height: 32px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div class="row" id="actions" hidden>
+      <button class="primary" id="shot">Снять образец</button>
+      <button id="save">Сохранить лицо</button>
+      <button id="close">Закрыть</button>
+    </div>
+    <div class="hint" id="hint">Загрузка моделей…</div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <script src="face.js"></script>
+</body>
+</html>

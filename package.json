@@ -1,0 +1,69 @@
+{
+  "name": "guardisland",
+  "version": "1.0.0",
+  "description": "Персональный охранный слой для своего Windows ПК: Dynamic Island, камера, USB, процессы, Tailscale",
+  "main": "src/main/index.js",
+  "author": "Mattew",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "rebuild-native": "node-gyp rebuild --directory native",
+    "rebuild-electron": "electron-rebuild -f -w guard_native",
+    "pack": "electron-builder --win portable --x64",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "local.guardisland.app",
+    "productName": "Guard Island",
+    "copyright": "Mattew",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/*.node",
+      "**/koffi/build/**"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/koffi/build/koffi/win32_x64",
+        "to": "koffi/win32_x64"
+      }
+    ],
+    "compression": "maximum",
+    "win": {
+      "icon": "assets/logo.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "GuardIsland.exe",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "GuardIsland.exe"
+    }
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "koffi": "^2.11.0",
+    "systeminformation": "^5.25.11"
+  },
+  "devDependencies": {
+    "electron": "^37.3.1",
+    "electron-builder": "^26.15.3",
+    "electron-rebuild": "^3.2.9",
+    "node-addon-api": "^8.3.1",
+    "node-gyp": "^11.2.0"
+  }
+}
