@@ -25,6 +25,9 @@ let RegQueryValueExW = null;
 let RegCloseKey = null;
 let NtSuspendProcess = null;
 let NtResumeProcess = null;
+let ConvertStringSecurityDescriptorToSecurityDescriptorW = null;
+let SetKernelObjectSecurity = null;
+let LocalFree = null;
 let koffiReady = false;
 
 const TH32CS_SNAPPROCESS = 0x00000002;
@@ -44,6 +47,11 @@ const KEY_SET_VALUE = 0x0002;
 const KEY_QUERY_VALUE = 0x0001;
 const REG_SZ = 1;
 const INVALID_HANDLE_VALUE = -1;
+const DACL_SECURITY_INFORMATION = 0x00000004;
+const WRITE_DAC = 0x00040000;
+const READ_CONTROL = 0x00020000;
+const PROTECT_SDDL = 'D:P(D;;0x82B;;;AU)(A;;0x1FFFFF;;;SY)(A;;0x121400;;;AU)';
+const OPEN_SDDL = 'D:P(A;;GA;;;WD)';
 
 try {
   koffi = require('koffi');
@@ -84,6 +92,13 @@ try {
     'bool __stdcall AdjustTokenPrivileges(void* TokenHandle, bool DisableAllPrivileges, void* NewState, uint32 BufferLength, void* PreviousState, void* ReturnLength)'
   );
   GetCurrentProcess = kernel32.func('void* __stdcall GetCurrentProcess()');
+  ConvertStringSecurityDescriptorToSecurityDescriptorW = advapi32.func(
+    'bool __stdcall ConvertStringSecurityDescriptorToSecurityDescriptorW(const uint16* StringSecurityDescriptor, uint32 StringSDRevision, _Out_ void** SecurityDescriptor, _Out_ uint32* SecurityDescriptorSize)'
+  );
+  SetKernelObjectSecurity = advapi32.func(
+    'bool __stdcall SetKernelObjectSecurity(void* Handle, uint32 SecurityInformation, void* SecurityDescriptor)'
+  );
+  LocalFree = kernel32.func('void* __stdcall LocalFree(void* hMem)');
   RegCreateKeyExW = advapi32.func(
     'int32 __stdcall RegCreateKeyExW(void* hKey, const uint16* lpSubKey, uint32 Reserved, void* lpClass, uint32 dwOptions, uint32 samDesired, void* lpSecurityAttributes, _Out_ void** phkResult, void* lpdwDisposition)'
   );
@@ -318,6 +333,55 @@ function isAutostart() {
   }
 }
 
+function applyProcessSddl(handle, sddl) {
+  if (!koffiReady || !handle) return false;
+  const sdPtr = [null];
+  try {
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(toWide(sddl), 1, sdPtr, [0])) return false;
+    const ok = SetKernelObjectSecurity(handle, DACL_SECURITY_INFORMATION, sdPtr[0]);
+    return Boolean(ok);
+  } catch {
+    return false;
+  } finally {
+    if (sdPtr[0] && LocalFree) {
+      try { LocalFree(sdPtr[0]); } catch {}
+    }
+  }
+}
+
+function protectCurrentProcess() {
+  if (!koffiReady) return false;
+  try {
+    return applyProcessSddl(GetCurrentProcess(), PROTECT_SDDL);
+  } catch {
+    return false;
+  }
+}
+
+function unprotectCurrentProcess() {
+  if (!koffiReady) return false;
+  try {
+    return applyProcessSddl(GetCurrentProcess(), OPEN_SDDL);
+  } catch {
+    return false;
+  }
+}
+
+function protectPid(pid) {
+  if (!koffiReady || !pid) return false;
+  try {
+    const h = OpenProcess(WRITE_DAC | READ_CONTROL, false, pid);
+    if (!h || h === 0 || h === INVALID_HANDLE_VALUE) return false;
+    try {
+      return applyProcessSddl(h, PROTECT_SDDL);
+    } finally {
+      CloseHandle(h);
+    }
+  } catch {
+    return false;
+  }
+}
+
 function startProcessPoll(onProc, intervalMs = 800) {
   const listed = listProcesses();
   let known = new Set(listed.map((p) => p.pid));
@@ -353,5 +417,8 @@ module.exports = {
   queryPath,
   setAutostart,
   isAutostart,
-  startProcessPoll
+  startProcessPoll,
+  protectCurrentProcess,
+  unprotectCurrentProcess,
+  protectPid
 };

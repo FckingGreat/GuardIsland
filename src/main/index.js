@@ -37,6 +37,8 @@ let sessionUnlocked = false;
 let saveBoundsTimer = null;
 let allowQuit = false;
 let promptKind = 'process';
+let watchdogProc = null;
+let protectTimer = null;
 const sessionAllowedPids = new Set();
 
 const MODEL_FILES = [
@@ -331,6 +333,7 @@ function requestQuit() {
 }
 
 function confirmQuit() {
+  markCleanExit();
   allowQuit = true;
   promptKind = 'process';
   closePrompt();
@@ -434,7 +437,7 @@ function stopUsb() {
   usbPoller?.stop();
 }
 
-const { queryPath, listProcesses } = require('./win32');
+const { queryPath, listProcesses, protectCurrentProcess, unprotectCurrentProcess, protectPid } = require('./win32');
 
 function fillProc(proc) {
   if (!proc.path) proc.path = queryPath(proc.pid);
@@ -596,6 +599,90 @@ function startRemoteWatch() {
   }, 60000);
 }
 
+function cleanExitPath() {
+  return path.join(app.getPath('userData'), 'clean-exit');
+}
+
+function watchdogAlive() {
+  if (!watchdogProc || !watchdogProc.pid) return false;
+  try {
+    process.kill(watchdogProc.pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function stopWatchdog() {
+  if (protectTimer) {
+    clearInterval(protectTimer);
+    protectTimer = null;
+  }
+  killWatchdogProcess();
+}
+
+function killWatchdogProcess() {
+  if (watchdogProc && watchdogProc.pid) {
+    try { process.kill(watchdogProc.pid); } catch {}
+  }
+  watchdogProc = null;
+}
+
+function protectOurProcesses() {
+  try { protectCurrentProcess(); } catch {}
+  for (const w of BrowserWindow.getAllWindows()) {
+    try {
+      const pid = w.webContents.getOSProcessId();
+      if (pid) protectPid(pid);
+    } catch {}
+  }
+}
+
+function startWatchdog() {
+  if (watchdogAlive()) return;
+  killWatchdogProcess();
+  try { fs.unlinkSync(cleanExitPath()); } catch {}
+  const src = path.join(__dirname, 'watchdog.js');
+  const script = path.join(app.getPath('userData'), 'watchdog.js');
+  try { fs.copyFileSync(src, script); } catch { /* asar copy */ }
+  watchdogProc = spawn(process.execPath, [
+    fs.existsSync(script) ? script : src,
+    String(process.pid),
+    appExecutablePath(),
+    app.getPath('userData'),
+    '1'
+  ], {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true
+  });
+  watchdogProc.unref();
+}
+
+function markCleanExit() {
+  try { fs.writeFileSync(cleanExitPath(), String(Date.now())); } catch {}
+  stopWatchdog();
+  try { unprotectCurrentProcess(); } catch {}
+}
+
+function syncSelfProtect() {
+  const on = store.get().armed === true;
+  if (on) {
+    protectOurProcesses();
+    startWatchdog();
+    if (!protectTimer) {
+      protectTimer = setInterval(() => {
+        if (!watchdogAlive()) startWatchdog();
+        protectOurProcesses();
+      }, 8000);
+      protectTimer.unref?.();
+    }
+  } else {
+    markCleanExit();
+  }
+}
+
 function unlockSession() {
   sessionUnlocked = true;
   startedAt = Date.now();
@@ -621,6 +708,7 @@ async function confirmSettingsAuth({ currentPassword, useHello }) {
 function applyConfig() {
   const cfg = store.get();
   applyAutostart(cfg.autostart);
+  syncSelfProtect();
   if (!sessionUnlocked) {
     stopUsb();
     bridge.offProcess();
@@ -900,7 +988,17 @@ app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=192');
 
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  allowQuit = true;
+  app.quit();
+}
+app.on('second-instance', () => {
+  createSettings();
+});
+
 app.whenReady().then(() => {
+  if (!gotLock) return;
   Menu.setApplicationMenu(null);
   app.setAppUserModelId('local.guardisland.app');
   store = createStore(app);
@@ -914,7 +1012,11 @@ app.whenReady().then(() => {
   wireIpc();
   createTray();
   createSettings();
-  powerMonitor.on('shutdown', () => { allowQuit = true; });
+  syncSelfProtect();
+  powerMonitor.on('shutdown', () => {
+    markCleanExit();
+    allowQuit = true;
+  });
   log.info('started', { engine: bridge.engine, userData: app.getPath('userData') });
 });
 
@@ -929,6 +1031,7 @@ app.on('before-quit', (e) => {
 });
 
 app.on('will-quit', () => {
+  if (!allowQuit) return;
   globalShortcut.unregisterAll();
   stopUsb();
   fileGuard?.stop();
