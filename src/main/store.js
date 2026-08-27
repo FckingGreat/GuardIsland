@@ -28,7 +28,8 @@ const DEFAULTS = {
   allowlist: [],
   customAllow: [],
   firstRunDone: false,
-  windowBounds: null
+  windowBounds: null,
+  theme: 'dark'
 };
 
 const PASSWORD_KINDS = ['appPin', 'processPassword', 'panicPassword', 'loginPassword'];
@@ -123,6 +124,7 @@ function createStore(app) {
       if (next.processGateMode && next.processGateMode !== 'strict') {
         next.processGateMode = 'relaxed';
       }
+      if (next.theme && next.theme !== 'light') next.theme = 'dark';
       config = { ...config, ...next };
       persist();
       return this.get();

@@ -26,7 +26,7 @@ Guard Island is an Electron app that sits on your own PC. You log in with a user
 | **Hotkey** | Global key (Insert by default) for lock, shutdown, or notify. |
 | **Files** | Burst of new files in Desktop / Documents / Downloads / Telegram ChatExport. |
 | **Remote** | Tailscale on *your* account. No custom C2. |
-| **UI** | Black + orange, Plus Jakarta Sans, custom tray menu. |
+| **UI** | Dark or light theme (button in the title bar). Orange accent stays. Light mode uses black text on white. |
 
 ---
 
@@ -39,6 +39,17 @@ Guard Island is an Electron app that sits on your own PC. You log in with a user
 
 ---
 
+## Install
+
+Download the latest [release](https://github.com/FckingGreat/GuardIsland/releases):
+
+- **Guard.Island.Setup.*.exe** — installer. Puts the app in Start Menu / Apps, desktop shortcut, uninstall from Windows Settings.
+- **Guard.Island.*.exe** — portable, no install.
+
+Config lives in `%AppData%\Roaming\guardisland\`.
+
+---
+
 ## Run & Build
 
 ```bash
@@ -48,11 +59,14 @@ npm install
 # Run (dev)
 npm start
 
-# Single portable exe (no install)
+# Installer + portable
 npm run dist
 ```
 
-The portable file is `dist/GuardIsland.exe`. Copy it to another PC and run. Config lives in `%AppData%\Roaming\guardisland\`.
+Outputs:
+
+- `dist/Guard.Island.Setup.1.0.1.exe`
+- `dist/Guard.Island.1.0.1.exe`
 
 ---
 

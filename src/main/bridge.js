@@ -49,11 +49,15 @@ function createBridge() {
     },
     onProcess(cb) {
       const stops = [];
-      if (native?.onProcess) native.onProcess(cb);
-      else stops.push(win32.startProcessPoll(cb, 40));
+      let events = false;
       try {
         stops.push(startWmiProcessWatch(cb));
+        events = true;
       } catch {}
+      if (!events) {
+        if (native?.onProcess) native.onProcess(cb);
+        else stops.push(win32.startProcessPoll(cb, 800));
+      }
       stopProc = () => {
         for (const s of stops) {
           try { s(); } catch {}

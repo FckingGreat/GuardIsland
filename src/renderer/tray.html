@@ -1,18 +1,33 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600&display=swap" rel="stylesheet"/>
   <style>
-    html, body { margin: 0; background: #000; overflow: hidden; }
+    :root {
+      --bg: #000;
+      --line: #353a42;
+      --text: #e4e6e8;
+      --hover: #1a1a1a;
+      --accent: #e67e22;
+      --danger: #dc3545;
+    }
+    html[data-theme="light"] {
+      --bg: #ffffff;
+      --line: #d4d4d8;
+      --text: #111111;
+      --hover: #f4f4f5;
+      --accent: #e67e22;
+      --danger: #dc3545;
+    }
+    html, body { margin: 0; background: var(--bg); overflow: hidden; }
     body {
-      font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
-      color: #e4e6e8;
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--text);
       padding: 6px;
     }
     .menu {
-      background: #000;
-      border: 1px solid #353a42;
+      background: var(--bg);
+      border: 1px solid var(--line);
       border-radius: 12px;
       overflow: hidden;
     }
@@ -22,16 +37,16 @@
       text-align: left;
       background: transparent;
       border: 0;
-      color: #e4e6e8;
+      color: var(--text);
       padding: 10px 14px;
-      font: 500 13px 'Plus Jakarta Sans', sans-serif;
+      font: 500 13px 'Segoe UI', sans-serif;
       cursor: pointer;
     }
-    button:hover { background: #1a1a1a; color: #e67e22; }
-    button.danger:hover { color: #dc3545; }
+    button:hover { background: var(--hover); color: var(--accent); }
+    button.danger:hover { color: var(--danger); }
     hr {
       border: 0;
-      border-top: 1px solid #353a42;
+      border-top: 1px solid var(--line);
       margin: 4px 0;
     }
   </style>
@@ -47,9 +62,14 @@
     <button class="danger" data-act="quit">Выход (нужен пароль)</button>
   </div>
   <script>
+    function applyTheme(s) {
+      document.documentElement.setAttribute('data-theme', s && s.theme === 'light' ? 'light' : 'dark');
+    }
     document.querySelectorAll('button[data-act]').forEach((b) => {
       b.onclick = () => window.guard.tray(b.dataset.act);
     });
+    window.guard.onState(applyTheme);
+    window.guard.getState().then(applyTheme).catch(() => {});
   </script>
 </body>
 </html>

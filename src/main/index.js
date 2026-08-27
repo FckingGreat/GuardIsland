@@ -54,6 +54,30 @@ function modelsDir() {
   return path.join(app.getPath('userData'), 'models');
 }
 
+function themeColor() {
+  return (store && store.get().theme === 'light') ? '#ffffff' : '#000000';
+}
+
+function prefs(preloadName, extra = {}) {
+  return {
+    preload: path.join(__dirname, '..', 'preload', preloadName),
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: false,
+    spellcheck: false,
+    backgroundThrottling: true,
+    ...extra
+  };
+}
+
+function applyThemeToWindows() {
+  const bg = themeColor();
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.setBackgroundColor(bg);
+  if (trayMenuWin && !trayMenuWin.isDestroyed()) trayMenuWin.setBackgroundColor(bg);
+  if (faceWin && !faceWin.isDestroyed()) faceWin.setBackgroundColor(bg);
+  broadcast();
+}
+
 function publicState() {
   const cfg = store.get();
   return {
@@ -76,7 +100,7 @@ function requireSession() {
 
 function broadcast() {
   lastState = publicState();
-  for (const w of [islandWin, settingsWin]) {
+  for (const w of [islandWin, settingsWin, trayMenuWin, promptWin]) {
     if (w && !w.isDestroyed()) w.webContents.send('state', lastState);
   }
 }
@@ -160,12 +184,7 @@ function createIsland() {
     roundedCorners: false,
     autoHideMenuBar: true,
     icon: icon || undefined,
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'island.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true
-    }
+    webPreferences: prefs('island.js')
   });
   placeTopWindow(islandWin, w, h);
   islandWin.setAlwaysOnTop(true, 'screen-saver');
@@ -230,22 +249,25 @@ function createSettings() {
     ...bounds,
     minWidth: 900,
     minHeight: 550,
+    show: false,
     frame: false,
     autoHideMenuBar: true,
-    backgroundColor: '#000000',
+    backgroundColor: themeColor(),
     title: 'Guard Island',
     icon: icon || undefined,
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'settings.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true
-    }
+    webPreferences: prefs('settings.js')
   });
   settingsWin.setMenuBarVisibility(false);
   settingsWin.setMenu(null);
   if (icon) settingsWin.setIcon(icon);
   settingsWin.loadFile(path.join(__dirname, '..', 'renderer', 'settings.html'));
+  settingsWin.once('ready-to-show', () => {
+    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.show();
+  });
+  settingsWin.webContents.on('did-fail-load', (_e, code, desc) => {
+    log.warn('settings-load', { code, desc });
+    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.show();
+  });
   settingsWin.on('resize', scheduleSaveSettingsBounds);
   settingsWin.on('move', scheduleSaveSettingsBounds);
   settingsWin.on('close', () => {
@@ -256,6 +278,7 @@ function createSettings() {
 
 function createPrompt(data) {
   closePrompt();
+  const payload = { theme: store.get().theme, ...data };
   promptWin = new BrowserWindow({
     width: 420,
     height: data?.mode === 'quit' ? 300 : 280,
@@ -266,17 +289,12 @@ function createPrompt(data) {
     resizable: false,
     closable: true,
     backgroundColor: '#00000000',
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'prompt.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true
-    }
+    webPreferences: prefs('prompt.js')
   });
   promptWin.setAlwaysOnTop(true, 'screen-saver');
   promptWin.loadFile(path.join(__dirname, '..', 'renderer', 'prompt.html'));
   promptWin.webContents.on('did-finish-load', () => {
-    if (promptWin && !promptWin.isDestroyed()) promptWin.webContents.send('prompt-data', data);
+    if (promptWin && !promptWin.isDestroyed()) promptWin.webContents.send('prompt-data', payload);
   });
   const win = promptWin;
   win.on('closed', () => {
@@ -347,12 +365,7 @@ function openFace(mode) {
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     icon: getAppIcon() || undefined,
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'face.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false
-    }
+    webPreferences: prefs('face.js')
   });
   faceWin.mode = mode;
   faceWin.setMenu(null);
@@ -400,7 +413,7 @@ function startUsb() {
     if (evt.action !== 'arrive') return;
     if (Date.now() - startedAt < 8000) return;
     performAction(cfg.usbAction || 'shutdown', `Новое устройство: ${evt.name}`);
-  });
+  }, 4000);
   usbPoller.start();
   if (islandWin && !islandWin.isDestroyed()) {
     try {
@@ -644,14 +657,9 @@ function createTrayMenuWindow() {
     alwaysOnTop: true,
     resizable: false,
     movable: false,
-    backgroundColor: '#000000',
+    backgroundColor: themeColor(),
     autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'tray.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true
-    }
+    webPreferences: prefs('tray.js')
   });
   trayMenuWin.setMenu(null);
   trayMenuWin.setMenuBarVisibility(false);
@@ -670,6 +678,10 @@ function showTrayMenu(bounds) {
   if (y < display.workArea.y) y = bounds.y + bounds.height + 6;
   x = Math.min(Math.max(x, display.workArea.x), display.workArea.x + display.workArea.width - w);
   trayMenuWin.setBounds({ x, y, width: w, height: h });
+  trayMenuWin.setBackgroundColor(themeColor());
+  if (!trayMenuWin.webContents.isLoading()) {
+    trayMenuWin.webContents.send('state', publicState());
+  }
   trayMenuWin.show();
   trayMenuWin.focus();
 }
@@ -679,7 +691,6 @@ function createTray() {
   const img = icon ? icon.resize({ width: 16, height: 16 }) : nativeImage.createEmpty();
   tray = new Tray(img);
   tray.setToolTip('Guard Island');
-  createTrayMenuWindow();
   tray.on('right-click', (_e, bounds) => showTrayMenu(bounds));
   tray.on('click', () => createSettings());
 }
@@ -722,7 +733,13 @@ function wireIpc() {
     requireSession();
     const next = store.set(patch || {});
     applyConfig();
+    applyThemeToWindows();
     return next;
+  });
+  ipcMain.handle('set-theme', (_e, theme) => {
+    store.set({ theme: theme === 'light' ? 'light' : 'dark' });
+    applyThemeToWindows();
+    return publicState();
   });
   ipcMain.handle('set-password', async (_e, payload) => {
     requireSession();
@@ -830,6 +847,7 @@ function wireIpc() {
       }
       if (promptWin && !promptWin.isDestroyed()) {
         promptWin.webContents.send('prompt-data', {
+          theme: store.get().theme,
           mode: 'quit',
           hasPassword: true,
           name: 'Тот же пароль, что на запуск программ',
@@ -851,6 +869,7 @@ function wireIpc() {
     }
     if (promptWin && !promptWin.isDestroyed()) {
       promptWin.webContents.send('prompt-data', {
+        theme: store.get().theme,
         ...(pendingProc || {}),
         error: 'Неверный пароль'
       });
@@ -875,7 +894,11 @@ function wireIpc() {
   });
 }
 
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=192');
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);

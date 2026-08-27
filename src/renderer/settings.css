@@ -7,11 +7,29 @@
   --accent: #e67e22;
   --accent-hover: #eb9952;
   --danger: #dc3545;
+  --hover: #1a1a1a;
+  --nav-active: #1a140e;
+  --btn-bg: #151515;
+  --switch: #222;
+}
+html[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f4f4f5;
+  --line: #e4e4e7;
+  --text: #111111;
+  --muted: #52525b;
+  --accent: #e67e22;
+  --accent-hover: #d35400;
+  --danger: #dc3545;
+  --hover: #ececec;
+  --nav-active: #fff4eb;
+  --btn-bg: #f4f4f5;
+  --switch: #e4e4e7;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {
-  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI', 'Segoe UI Variable', sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -42,7 +60,8 @@ body {
   width: 46px; height: 36px; border: 0;
   background: transparent; color: var(--muted); cursor: pointer;
 }
-.wn:hover { background: #1a1a1a; color: #fff; }
+.wn:hover { background: var(--hover); color: var(--text); }
+.wn.theme { font-size: 14px; }
 .wn.c:hover { background: var(--danger); color: #fff; }
 
 .app { display: flex; height: calc(100% - 36px); }
@@ -62,11 +81,11 @@ body {
   color: var(--muted);
   padding: 9px 12px;
   border-radius: 6px;
-  font: 500 13px 'Plus Jakarta Sans', sans-serif;
+  font: 500 13px 'Segoe UI', sans-serif;
   cursor: pointer;
 }
-.ni:hover { background: #151515; color: var(--text); }
-.ni.a { background: #1a140e; color: var(--accent); }
+.ni:hover { background: var(--hover); color: var(--text); }
+.ni.a { background: var(--nav-active); color: var(--accent); }
 .sb-ft { padding: 12px; border-top: 1px solid var(--line); }
 .tg {
   display: block;
@@ -110,7 +129,7 @@ h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch i {
   position: absolute; inset: 0;
-  background: #222; border: 1px solid var(--line); border-radius: 99px;
+  background: var(--switch); border: 1px solid var(--line); border-radius: 99px;
 }
 .switch i::after {
   content: "";
@@ -126,14 +145,14 @@ h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
   display: block; margin-top: 6px; width: 100%; max-width: 520px;
   padding: 9px 12px; background: var(--surface);
   border: 1px solid var(--line); border-radius: 6px;
-  color: var(--text); font: 13px 'Plus Jakarta Sans', sans-serif;
+  color: var(--text); font: 13px 'Segoe UI', sans-serif;
 }
 .inp:focus { outline: none; border-color: var(--accent); }
 .split { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0 16px; }
 .btn {
   height: 34px; padding: 0 12px; border-radius: 6px;
-  border: 1px solid var(--line); background: #151515; color: var(--text);
-  font: 600 12px 'Plus Jakarta Sans', sans-serif; cursor: pointer;
+  border: 1px solid var(--line); background: var(--btn-bg); color: var(--text);
+  font: 600 12px 'Segoe UI', sans-serif; cursor: pointer;
   width: 100%; margin-top: 6px;
 }
 .btn-pri { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -153,7 +172,7 @@ form.wide { margin-bottom: 10px; }
 .gate {
   position: fixed;
   inset: 36px 0 0 0;
-  background: #000;
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,7 +181,7 @@ form.wide { margin-bottom: 10px; }
 .gate[hidden] { display: none; }
 .gate-card {
   width: 360px;
-  background: #111;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 28px 24px 24px;

@@ -28,8 +28,10 @@ function createFileGuard({ log, onAnomaly }) {
     watcher = chokidar.watch(roots, {
       ignoreInitial: true,
       persistent: true,
-      depth: 6,
-      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 }
+      depth: 4,
+      ignorePermissionErrors: true,
+      ignored: /(^|[\\/])(\.git|node_modules|AppData)([\\/]|$)/i,
+      awaitWriteFinish: { stabilityThreshold: 400, pollInterval: 400 }
     });
     watcher.on('add', (file) => {
       const now = Date.now();

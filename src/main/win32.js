@@ -318,7 +318,7 @@ function isAutostart() {
   }
 }
 
-function startProcessPoll(onProc, intervalMs = 40) {
+function startProcessPoll(onProc, intervalMs = 800) {
   const listed = listProcesses();
   let known = new Set(listed.map((p) => p.pid));
   const byPid = new Map(listed.map((p) => [p.pid, p]));

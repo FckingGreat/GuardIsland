@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('guard', {
   getState: () => ipcRenderer.invoke('get-state'),
   setConfig: (patch) => ipcRenderer.invoke('set-config', patch),
+  setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
   setupAccount: (payload) => ipcRenderer.invoke('setup-account', payload),
   login: (username, password) => ipcRenderer.invoke('login', { username, password }),
   setPassword: (payload) => ipcRenderer.invoke('set-password', payload),

@@ -1,6 +1,6 @@
 {
   "name": "guardisland",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Персональный охранный слой для своего Windows ПК: Dynamic Island, камера, USB, процессы, Tailscale",
   "main": "src/main/index.js",
   "author": "Mattew",
@@ -10,8 +10,8 @@
     "start": "electron .",
     "rebuild-native": "node-gyp rebuild --directory native",
     "rebuild-electron": "electron-rebuild -f -w guard_native",
-    "pack": "electron-builder --win portable --x64",
-    "dist": "electron-builder --win portable --x64"
+    "pack": "electron-builder --win nsis portable --x64",
+    "dist": "electron-builder --win nsis portable --x64"
   },
   "build": {
     "appId": "local.guardisland.app",
@@ -40,6 +40,12 @@
       "icon": "assets/logo.ico",
       "target": [
         {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
           "target": "portable",
           "arch": [
             "x64"
@@ -47,17 +53,28 @@
         }
       ],
       "requestedExecutionLevel": "asInvoker",
-      "artifactName": "GuardIsland.exe",
       "signAndEditExecutable": false
     },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Guard Island",
+      "uninstallDisplayName": "Guard Island",
+      "artifactName": "Guard.Island.Setup.${version}.exe",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
     "portable": {
-      "artifactName": "GuardIsland.exe"
+      "artifactName": "Guard.Island.${version}.exe"
     }
   },
   "dependencies": {
     "chokidar": "^4.0.3",
-    "koffi": "^2.11.0",
-    "systeminformation": "^5.25.11"
+    "koffi": "^2.11.0"
   },
   "devDependencies": {
     "electron": "^37.3.1",

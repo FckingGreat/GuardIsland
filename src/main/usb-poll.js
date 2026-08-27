@@ -1,28 +1,33 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
-const si = require('systeminformation');
 
-function createUsbPoller(onChange, intervalMs = 1600) {
+function listRemovableLetters() {
+  const out = [];
+  for (let i = 68; i <= 90; i++) {
+    const letter = String.fromCharCode(i) + ':\\';
+    try {
+      if (fs.existsSync(letter)) out.push(letter);
+    } catch {}
+  }
+  return out;
+}
+
+function createUsbPoller(onChange, intervalMs = 4000) {
   let prev = new Set();
   let timer = null;
   let first = true;
 
-  async function tick() {
+  function tick() {
     try {
-      const list = await si.usb();
-      const ids = new Set(
-        (list || []).map((d) => String(d.id || d.deviceId || `${d.vendor}:${d.type}:${d.name}`))
-      );
+      const ids = new Set(listRemovableLetters());
       if (!first) {
         for (const id of ids) {
           if (!prev.has(id)) {
-            const device = (list || []).find((d) => String(d.id || d.deviceId || `${d.vendor}:${d.type}:${d.name}`) === id);
             onChange({
               action: 'arrive',
               kind: 'usb',
-              name: device?.name || device?.type || 'USB device',
+              name: `Съёмный диск ${id}`,
               id
             });
           }
@@ -41,6 +46,7 @@ function createUsbPoller(onChange, intervalMs = 1600) {
     prev = new Set();
     tick();
     timer = setInterval(tick, intervalMs);
+    timer.unref?.();
   }
 
   function stop() {
@@ -49,17 +55,6 @@ function createUsbPoller(onChange, intervalMs = 1600) {
   }
 
   return { start, stop };
-}
-
-function listRemovableLetters() {
-  const out = [];
-  for (let i = 68; i <= 90; i++) {
-    const letter = String.fromCharCode(i) + ':\\';
-    try {
-      if (fs.existsSync(letter)) out.push(letter);
-    } catch {}
-  }
-  return out;
 }
 
 module.exports = { createUsbPoller, listRemovableLetters };

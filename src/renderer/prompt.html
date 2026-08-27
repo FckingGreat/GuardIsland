@@ -1,36 +1,56 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <title>Guard Island</title>
   <style>
+    :root {
+      --bg: #000;
+      --line: #353a42;
+      --text: #f6f7fb;
+      --muted: rgba(255,255,255,.55);
+      --input-bg: rgba(0,0,0,.35);
+      --input-border: rgba(255,255,255,.1);
+      --no-bg: #1a1a1a;
+      --accent: #e67e22;
+    }
+    html[data-theme="light"] {
+      --bg: #ffffff;
+      --line: #d4d4d8;
+      --text: #111111;
+      --muted: #52525b;
+      --input-bg: #f4f4f5;
+      --input-border: #d4d4d8;
+      --no-bg: #f4f4f5;
+      --accent: #e67e22;
+    }
     html, body { margin: 0; height: 100%; background: transparent; }
     body {
-      font: 14px/1.4 "Segoe UI Variable Display", "Segoe UI", sans-serif;
-      color: #f6f7fb;
+      font: 14px/1.4 "Segoe UI", sans-serif;
+      color: var(--text);
     }
     .wrap {
       height: 100%;
       padding: 22px 24px;
-      background: #000;
-      border: 1px solid #353a42;
+      background: var(--bg);
+      border: 1px solid var(--line);
       border-radius: 12px;
       box-sizing: border-box;
     }
     h1 { font-size: 18px; margin: 0 0 6px; }
-    .name { color: #e67e22; word-break: break-all; font-size: 13px; margin-bottom: 8px; }
-    .hint { color: rgba(255,255,255,.55); font-size: 12px; margin-bottom: 14px; }
+    .name { color: var(--accent); word-break: break-all; font-size: 13px; margin-bottom: 8px; }
+    .hint { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
     input {
       width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.35); color: #fff; font: inherit;
+      border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text); font: inherit;
       outline: none;
     }
-    input:focus { border-color: #e67e22; }
-    .err { color: #ff4d6d; font-size: 12px; min-height: 16px; margin: 8px 0; }
+    input:focus { border-color: var(--accent); }
+    .err { color: #dc3545; font-size: 12px; min-height: 16px; margin: 8px 0; }
     .row { display: flex; gap: 8px; }
     button { flex: 1; height: 40px; border: 0; border-radius: 14px; cursor: pointer; font-weight: 700; }
-    .ok { background: #e67e22; color: #fff; }
-    .no { background: #1a1a1a; color: #e4e6e8; border: 1px solid #353a42; }
+    .ok { background: var(--accent); color: #fff; }
+    .no { background: var(--no-bg); color: var(--text); border: 1px solid var(--line); }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -47,7 +67,11 @@
     </div>
   </div>
   <script>
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+    }
     window.guard.onPrompt((d) => {
+      applyTheme(d.theme);
       const quit = d.mode === 'quit';
       const has = d.hasPassword !== false;
       document.getElementById('title').textContent = quit

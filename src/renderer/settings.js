@@ -28,8 +28,19 @@ function showGate(s) {
   }
 }
 
+function applyTheme(s) {
+  const theme = s && s.theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeBtn');
+  if (btn) {
+    btn.textContent = theme === 'light' ? '☾' : '☀';
+    btn.title = theme === 'light' ? 'Тёмная тема' : 'Светлая тема';
+  }
+}
+
 function bind(s) {
   state = s;
+  applyTheme(s);
   showGate(s);
   if (!s.session || !s.session.unlocked) return;
   document.querySelectorAll('[data-cfg]').forEach((el) => {
@@ -150,6 +161,10 @@ document.querySelectorAll('a[href^="https://t.me/"]').forEach((a) => {
     e.preventDefault();
     window.guard.openUrl(a.href);
   });
+});
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const next = (state && state.theme === 'light') ? 'dark' : 'light';
+  window.guard.setTheme(next).then(bind).catch(() => {});
 });
 document.getElementById('minBtn').addEventListener('click', () => window.guard.minimize());
 document.getElementById('maxBtn').addEventListener('click', () => window.guard.maximize());

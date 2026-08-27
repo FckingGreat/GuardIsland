@@ -4,19 +4,30 @@
   --text: #e4e6e8;
   --muted: #9ca3ab;
   --accent: #e67e22;
+  --chip: #0d0d0d;
+  --btn: #0d0d0d;
+}
+html[data-theme="light"] {
+  --bg: #ffffff;
+  --line: #d4d4d8;
+  --text: #111111;
+  --muted: #52525b;
+  --accent: #e67e22;
+  --chip: #f4f4f5;
+  --btn: #f4f4f5;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   width: 100%; height: 100%;
   background: transparent;
   overflow: hidden;
-  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI', 'Segoe UI Variable', sans-serif;
   user-select: none;
   color: var(--text);
 }
 .island {
   width: 100%; height: 100%;
-  background: #000;
+  background: var(--bg);
   border: 1px solid var(--line);
   border-top: 0;
   border-radius: 0 0 16px 16px;
@@ -44,7 +55,7 @@ html, body {
   margin-left: auto;
   font-size: 11px;
   color: var(--muted);
-  background: #0d0d0d;
+  background: var(--chip);
   border: 1px solid var(--line);
   padding: 2px 8px;
   border-radius: 6px;
@@ -59,9 +70,9 @@ html, body {
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid var(--line);
-  background: #0d0d0d;
+  background: var(--btn);
   color: var(--text);
-  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  font: 600 12px 'Segoe UI', sans-serif;
   cursor: pointer;
 }
 .fold:hover { border-color: var(--accent); color: var(--accent); }
@@ -80,11 +91,11 @@ html, body {
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid var(--line);
-  background: #0d0d0d;
+  background: var(--btn);
   color: var(--text);
-  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  font: 600 12px 'Segoe UI', sans-serif;
   cursor: pointer;
 }
 .actions .pri { background: var(--accent); border-color: var(--accent); color: #fff; }
 .actions .ghost { margin-left: auto; color: var(--muted); }
-.actions button:hover { border-color: #6b7280; }
+.actions button:hover { border-color: var(--accent); }

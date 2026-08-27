@@ -30,6 +30,7 @@ function expand() {
 
 function apply(s) {
   state = s;
+  document.documentElement.setAttribute('data-theme', s.theme === 'light' ? 'light' : 'dark');
   island.classList.toggle('collapsed', !expanded);
   const armed = s.armed;
   const test = s.testMode !== false;
