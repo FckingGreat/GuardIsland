@@ -18,7 +18,7 @@ Guard Island is an Electron app that sits on your own PC. You log in with a user
 
 | Block | Description |
 |--------|-------------|
-| **Island** | Compact pill flush to the top of the screen. Expand, collapse, or hide fully (restore from tray). **Quit** needs the same password as new programs; if it is not set, exit is blocked. While **Armed**, Task Manager cannot end the process as a normal user. If it is killed anyway, Windows locks and the app restarts. |
+| **Island** | Compact pill flush to the top of the screen. Expand, collapse, or hide fully (restore from tray). **Quit** needs the same password as new programs; if it is not set, exit is blocked. While **Armed**, a normal user cannot End task the process. If it is killed, the app can restart; it does **not** lock Windows on a false alarm. |
 | **Login** | App opens only after username + password. Change login or any secret in Settings only with the settings password or Windows Hello. |
 | **Process gate** | **Relaxed** (default) — prompt only on suspicious launches (Downloads, USB, lone Desktop exe). Windows, WSL, Node, and installed programs are allowed. **Strict** — prompt almost everything except Windows / WSL / Node. Same exe name = one password prompt, not a stack. **Allowlist** from the prompt remembers an app and everything it launches; remove entries in Settings → Programs. |
 | **USB** | React to a newly attached device (notify / lock / shutdown). Devices already plugged in at start are ignored. |
@@ -65,8 +65,8 @@ npm run dist
 
 Outputs:
 
-- `dist/Guard.Island.Setup.1.0.3.exe`
-- `dist/Guard.Island.1.0.3.exe`
+- `dist/Guard.Island.Setup.1.0.4.exe`
+- `dist/Guard.Island.1.0.4.exe`
 
 ---
 

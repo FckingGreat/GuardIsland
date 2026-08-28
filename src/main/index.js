@@ -14,6 +14,11 @@ const { createFileGuard } = require('./file-guard');
 const { tailscaleStatus, ensureTailscaleUp } = require('./remote');
 const { createUsbPoller } = require('./usb-poll');
 
+const runningAsWatchdog = process.argv.some((a) => /watchdog\.js$/i.test(String(a)));
+if (runningAsWatchdog) {
+  require('./watchdog.js');
+}
+
 let store;
 let log;
 let bridge;
@@ -134,6 +139,10 @@ function performAction(action, reason) {
   }
   if (isTest()) {
     toast('test', `ТЕСТ: было бы «${action}» — ${reason}`);
+    return;
+  }
+  if ((action === 'lock' || action === 'shutdown') && Date.now() - startedAt < 20000) {
+    toast('info', 'Сразу после запуска lock/shutdown отключены — подождите пару секунд');
     return;
   }
 
@@ -414,7 +423,7 @@ function startUsb() {
   if (!cfg.usbGuard) return;
   usbPoller = createUsbPoller((evt) => {
     if (evt.action !== 'arrive') return;
-    if (Date.now() - startedAt < 8000) return;
+    if (Date.now() - startedAt < 15000) return;
     performAction(cfg.usbAction || 'shutdown', `Новое устройство: ${evt.name}`);
   }, 4000);
   usbPoller.start();
@@ -621,6 +630,29 @@ function cleanExitPath() {
   return path.join(app.getPath('userData'), 'clean-exit');
 }
 
+function heartbeatPath() {
+  return path.join(app.getPath('userData'), 'heartbeat');
+}
+
+function touchHeartbeat() {
+  try { fs.writeFileSync(heartbeatPath(), String(Date.now())); } catch {}
+}
+
+let heartbeatTimer = null;
+function startHeartbeat() {
+  touchHeartbeat();
+  if (heartbeatTimer) return;
+  heartbeatTimer = setInterval(touchHeartbeat, 2000);
+  heartbeatTimer.unref?.();
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
 function watchdogAlive() {
   if (!watchdogProc || !watchdogProc.pid) return false;
   try {
@@ -660,15 +692,15 @@ function startWatchdog() {
   if (watchdogAlive()) return;
   killWatchdogProcess();
   try { fs.unlinkSync(cleanExitPath()); } catch {}
+  touchHeartbeat();
   const src = path.join(__dirname, 'watchdog.js');
   const script = path.join(app.getPath('userData'), 'watchdog.js');
-  try { fs.copyFileSync(src, script); } catch { /* asar copy */ }
+  try { fs.copyFileSync(src, script); } catch {}
   watchdogProc = spawn(process.execPath, [
     fs.existsSync(script) ? script : src,
     String(process.pid),
     appExecutablePath(),
-    app.getPath('userData'),
-    '1'
+    app.getPath('userData')
   ], {
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     detached: true,
@@ -680,24 +712,34 @@ function startWatchdog() {
 
 function markCleanExit() {
   try { fs.writeFileSync(cleanExitPath(), String(Date.now())); } catch {}
+  stopHeartbeat();
   stopWatchdog();
   try { unprotectCurrentProcess(); } catch {}
 }
 
 function syncSelfProtect() {
+  if (!sessionUnlocked) {
+    markCleanExit();
+    startHeartbeat();
+    return;
+  }
   const on = store.get().armed === true;
+  startHeartbeat();
   if (on) {
-    protectOurProcesses();
     startWatchdog();
+    setTimeout(() => {
+      if (store.get().armed && sessionUnlocked) protectOurProcesses();
+    }, 3000);
     if (!protectTimer) {
       protectTimer = setInterval(() => {
         if (!watchdogAlive()) startWatchdog();
-        protectOurProcesses();
+        if (store.get().armed) protectOurProcesses();
       }, 8000);
       protectTimer.unref?.();
     }
   } else {
     markCleanExit();
+    startHeartbeat();
   }
 }
 
@@ -739,6 +781,7 @@ function applyConfig() {
     return;
   }
   registerHotkey();
+  syncSelfProtect();
   if (cfg.usbGuard) startUsb(); else stopUsb();
   startProcessGate();
   startFileGuard();
@@ -1002,6 +1045,7 @@ function wireIpc() {
   });
 }
 
+if (!runningAsWatchdog) {
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-gpu-compositing');
@@ -1030,9 +1074,10 @@ app.whenReady().then(() => {
   });
   startedAt = Date.now();
   wireIpc();
+  startHeartbeat();
+  try { fs.writeFileSync(cleanExitPath(), String(Date.now())); } catch {}
   createTray();
   createSettings();
-  syncSelfProtect();
   powerMonitor.on('shutdown', () => {
     markCleanExit();
     allowQuit = true;
@@ -1057,3 +1102,4 @@ app.on('will-quit', () => {
   fileGuard?.stop();
   bridge?.stop();
 });
+}
