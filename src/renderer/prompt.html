@@ -47,9 +47,10 @@
     }
     input:focus { border-color: var(--accent); }
     .err { color: #dc3545; font-size: 12px; min-height: 16px; margin: 8px 0; }
-    .row { display: flex; gap: 8px; }
+    .row { display: flex; gap: 8px; margin-top: 8px; }
     button { flex: 1; height: 40px; border: 0; border-radius: 14px; cursor: pointer; font-weight: 700; }
     .ok { background: var(--accent); color: #fff; }
+    .once { background: var(--no-bg); color: var(--text); border: 1px solid var(--accent); }
     .no { background: var(--no-bg); color: var(--text); border: 1px solid var(--line); }
     .hidden { display: none !important; }
   </style>
@@ -61,8 +62,11 @@
     <div class="hint" id="hint">Введите пароль, чтобы разрешить запуск, или нажмите «Отменить».</div>
     <input id="pw" type="password" placeholder="Пароль" autocomplete="off" />
     <div class="err" id="err"></div>
+    <div class="row" id="rememberRow">
+      <button class="ok" id="remember">Внести в лист и разрешить</button>
+    </div>
     <div class="row">
-      <button class="ok" id="ok">Разрешить</button>
+      <button class="once" id="ok">Разрешить</button>
       <button class="no" id="no">Отменить</button>
     </div>
   </div>
@@ -70,10 +74,14 @@
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
     }
+    function send(remember) {
+      window.guard.submit(document.getElementById('pw').value, remember);
+    }
     window.guard.onPrompt((d) => {
       applyTheme(d.theme);
       const quit = d.mode === 'quit';
       const has = d.hasPassword !== false;
+      document.getElementById('rememberRow').classList.toggle('hidden', quit);
       document.getElementById('title').textContent = quit
         ? (has ? 'Выйти из Guard Island?' : 'Выход заблокирован')
         : 'Разрешить запуск?';
@@ -84,17 +92,18 @@
         ? (has
           ? 'Без этого пароля приложение не завершится.'
           : 'Задайте пароль запуска в Настройки → Пароли. Пока его нет, выйти нельзя.')
-        : 'Введите пароль, чтобы разрешить запуск, или нажмите «Отменить».';
+        : '«Внести в лист» — больше не спрашивать это приложение и всё, что оно запускает.';
       document.getElementById('err').textContent = d.error || (!quit && d.testMode ? 'Тест: программа на паузе' : '');
       document.getElementById('pw').classList.toggle('hidden', quit && !has);
-      document.getElementById('ok').textContent = quit ? (has ? 'Выйти' : 'Открыть настройки') : 'Разрешить';
+      document.getElementById('ok').textContent = quit ? (has ? 'Выйти' : 'Открыть настройки') : 'Разрешить один раз';
       document.getElementById('no').textContent = 'Отменить';
       if (!(quit && !has)) document.getElementById('pw').focus();
     });
-    document.getElementById('ok').onclick = () => window.guard.submit(document.getElementById('pw').value);
+    document.getElementById('remember').onclick = () => send(true);
+    document.getElementById('ok').onclick = () => send(false);
     document.getElementById('no').onclick = () => window.guard.cancel();
     document.getElementById('pw').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') window.guard.submit(e.target.value);
+      if (e.key === 'Enter') send(true);
       if (e.key === 'Escape') window.guard.cancel();
     });
   </script>

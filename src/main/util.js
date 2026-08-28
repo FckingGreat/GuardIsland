@@ -209,6 +209,38 @@ function looksLikeTelegramExport(filePath) {
   return false;
 }
 
+function normalizeAllowlist(list) {
+  const out = [];
+  const seen = new Set();
+  for (const x of list || []) {
+    const item = typeof x === 'string'
+      ? { name: x, path: '' }
+      : { name: String(x?.name || path.basename(x?.path || '')), path: String(x?.path || '') };
+    item.name = String(item.name || '').trim();
+    item.path = String(item.path || '').trim();
+    if (!item.name && !item.path) continue;
+    if (!item.name && item.path) item.name = path.basename(item.path);
+    const key = (item.path || item.name).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function isOnAllowlist(proc, list) {
+  const name = String(proc?.name || path.basename(proc?.path || '')).toLowerCase();
+  const pth = String(proc?.path || '').toLowerCase();
+  for (const e of normalizeAllowlist(list)) {
+    const en = e.name.toLowerCase();
+    const ep = e.path.toLowerCase();
+    if (en && en === name) return true;
+    if (ep && pth && ep === pth) return true;
+    if (en && pth && (pth.endsWith('\\' + en) || pth.endsWith('/' + en))) return true;
+  }
+  return false;
+}
+
 function runCaptured(cmd, args, timeoutMs = 8000) {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { windowsHide: true });
@@ -238,5 +270,7 @@ module.exports = {
   isWindowsTree,
   userWatchRoots,
   looksLikeTelegramExport,
-  runCaptured
+  runCaptured,
+  normalizeAllowlist,
+  isOnAllowlist
 };

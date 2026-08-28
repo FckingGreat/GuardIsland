@@ -69,7 +69,40 @@ function bind(s) {
   armHead.textContent = s.armed ? 'Снять охрану' : 'Включить охрану';
   document.getElementById('cd').classList.toggle('on', Boolean(s.armed) && s.testMode === false);
   document.getElementById('cl').textContent = !s.armed ? 'Охрана выкл' : s.testMode ? 'Тест' : 'Охрана вкл';
+  renderAllowList(s);
 }
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function renderAllowList(s) {
+  const box = document.getElementById('allowList');
+  if (!box) return;
+  const items = Array.isArray(s.allowlist) ? s.allowlist : [];
+  if (!items.length) {
+    box.innerHTML = '<p class="hint">Пока пусто. Когда вылезет запрос пароля — «Внести в лист и разрешить».</p>';
+    return;
+  }
+  box.innerHTML = items.map((e, i) => {
+    const name = typeof e === 'string' ? e : (e.name || '');
+    const pth = typeof e === 'string' ? '' : (e.path || '');
+    return `<div class="row-card allow-item">
+      <div><b>${esc(name)}</b><span>${esc(pth)}</span></div>
+      <button type="button" class="btn" data-del-allow="${i}">Удалить</button>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('allowList')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-del-allow]');
+  if (!btn || !state) return;
+  const idx = Number(btn.dataset.delAllow);
+  const next = (state.allowlist || []).filter((_, i) => i !== idx);
+  window.guard.setConfig({ allowlist: next });
+});
 
 document.querySelectorAll('[data-cfg]').forEach((el) => {
   const ev = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'change';

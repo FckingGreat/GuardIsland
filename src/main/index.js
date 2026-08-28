@@ -8,7 +8,7 @@ const https = require('https');
 const { createStore } = require('./store');
 const { createLogger } = require('./logger');
 const { createBridge } = require('./bridge');
-const { shouldIgnoreProcess } = require('./util');
+const { shouldIgnoreProcess, isOnAllowlist, normalizeAllowlist } = require('./util');
 const { requestWindowsHello } = require('./hello');
 const { createFileGuard } = require('./file-guard');
 const { tailscaleStatus, ensureTailscaleUp } = require('./remote');
@@ -283,7 +283,7 @@ function createPrompt(data) {
   const payload = { theme: store.get().theme, ...data };
   promptWin = new BrowserWindow({
     width: 420,
-    height: data?.mode === 'quit' ? 300 : 280,
+    height: data?.mode === 'quit' ? 300 : 360,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -480,6 +480,23 @@ function showNextPrompt() {
   });
 }
 
+function lineageAllowed(proc, entries) {
+  if (sessionAllowedPids.has(proc.pid) || sessionAllowedPids.has(Number(proc.ppid))) return 'session';
+  if (isOnAllowlist(proc, entries)) return 'list';
+  const listed = listProcesses();
+  const byPid = new Map(listed.map((p) => [p.pid, p]));
+  let pid = Number(proc.ppid);
+  for (let i = 0; i < 12 && pid; i++) {
+    if (sessionAllowedPids.has(pid)) return 'session';
+    const parent = byPid.get(pid);
+    if (!parent) break;
+    if (!parent.path) parent.path = queryPath(parent.pid);
+    if (isOnAllowlist(parent, entries)) return 'list';
+    pid = Number(parent.ppid);
+  }
+  return '';
+}
+
 function handleNewProcess(proc) {
   const cfg = store.get();
   if (!sessionUnlocked) return;
@@ -487,13 +504,12 @@ function handleNewProcess(proc) {
   if (!canAct()) return;
   if (Date.now() - startedAt < 2500) return;
   fillProc(proc);
-  const name = proc.name || path.basename(proc.path || '');
-  if (sessionAllowedPids.has(proc.pid) || sessionAllowedPids.has(Number(proc.ppid))) return;
+  const why = lineageAllowed(proc, cfg.allowlist || []);
+  if (why) {
+    if (why === 'session') sessionAllowedPids.add(proc.pid);
+    return;
+  }
   if (shouldIgnoreProcess(proc, cfg.customAllow || [], cfg.processGateMode || 'relaxed')) return;
-  const allow = (cfg.allowlist || []).map((x) => String(x).toLowerCase());
-  const key = (proc.path || name).toLowerCase();
-  const base = name.toLowerCase();
-  if (allow.includes(key) || allow.includes(base)) return;
   if (seenPids.has(proc.pid)) return;
   seenPids.add(proc.pid);
 
@@ -530,7 +546,7 @@ function denyProcess(why) {
   showNextPrompt();
 }
 
-function allowProcess(always) {
+function allowProcess(remember) {
   const proc = pendingProc;
   const group = takeFrozenGroup(proc);
   closePrompt();
@@ -538,15 +554,17 @@ function allowProcess(always) {
     showNextPrompt();
     return;
   }
-  if (always) {
+  if (remember) {
     const cfg = store.get();
-    const names = group.map((p) => (p.name || '').toLowerCase()).filter(Boolean);
-    const allowlist = Array.from(new Set([...(cfg.allowlist || []), ...names]));
-    store.set({ allowlist });
+    const extra = group.map((p) => ({
+      name: (p.name || path.basename(p.path || '')).toLowerCase(),
+      path: p.path || ''
+    })).filter((e) => e.name);
+    store.set({ allowlist: normalizeAllowlist([...(cfg.allowlist || []), ...extra]) });
     broadcast();
   }
   for (const p of group) {
-    sessionAllowedPids.add(p.pid);
+    if (!remember) sessionAllowedPids.add(p.pid);
     if (p.killed && p.path) {
       try {
         spawn(p.path, [], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
@@ -557,7 +575,7 @@ function allowProcess(always) {
       bridge.resume(p.pid);
     }
   }
-  toast('info', `Разрешено: ${proc.name}`);
+  toast('info', remember ? `В листе и разрешено: ${proc.name}` : `Разрешено: ${proc.name}`);
   showNextPrompt();
 }
 
@@ -916,7 +934,9 @@ function wireIpc() {
       shell.openExternal(u);
     }
   });
-  ipcMain.on('prompt-submit', (_e, password) => {
+  ipcMain.on('prompt-submit', (_e, payload) => {
+    const password = typeof payload === 'string' ? payload : (payload && payload.password);
+    const remember = typeof payload === 'object' && payload ? Boolean(payload.remember) : false;
     if (promptKind === 'quit') {
       if (!store.secretsMeta().hasProcessPassword) {
         cancelQuitPrompt();
@@ -952,7 +972,7 @@ function wireIpc() {
       return;
     }
     if (kind === 'allow' || kind === 'app') {
-      allowProcess(true);
+      allowProcess(remember);
       return;
     }
     if (promptWin && !promptWin.isDestroyed()) {

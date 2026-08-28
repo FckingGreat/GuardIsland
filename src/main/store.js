@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { normalizeAllowlist } = require('./util');
 
 const DEFAULTS = {
   armed: false,
@@ -101,6 +102,7 @@ function createStore(app) {
   const secFile = secretsPath(app);
   let config = { ...DEFAULTS, ...loadJson(cfgFile, {}) };
   if (config.processGateMode !== 'strict') config.processGateMode = 'relaxed';
+  config.allowlist = normalizeAllowlist(config.allowlist);
   let secrets = loadJson(secFile, {
     username: '',
     loginPassword: null,
@@ -125,6 +127,7 @@ function createStore(app) {
         next.processGateMode = 'relaxed';
       }
       if (next.theme && next.theme !== 'light') next.theme = 'dark';
+      if (Array.isArray(next.allowlist)) next.allowlist = normalizeAllowlist(next.allowlist);
       config = { ...config, ...next };
       persist();
       return this.get();
