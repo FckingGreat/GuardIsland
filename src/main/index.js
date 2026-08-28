@@ -44,7 +44,13 @@ let allowQuit = false;
 let promptKind = 'process';
 let watchdogProc = null;
 let protectTimer = null;
+let vaultKey = null;
 const sessionAllowedPids = new Set();
+const GUARD_KEYS = new Set([
+  'armed', 'testMode', 'usbGuard', 'usbAction', 'processGate', 'processGateMode',
+  'faceGuard', 'faceAction', 'hotkeyGuard', 'hotkey', 'hotkeyAction',
+  'fileAnomaly', 'fileBurstCount', 'fileAction', 'remoteWatchdog', 'autostart', 'allowlist'
+]);
 
 const MODEL_FILES = [
   'tiny_face_detector_model-weights_manifest.json',
@@ -169,8 +175,14 @@ function logoPath() {
   return path.join(__dirname, '..', '..', 'assets', 'logo.png');
 }
 
+function iconFile() {
+  const ico = path.join(__dirname, '..', '..', 'assets', 'logo.ico');
+  if (fs.existsSync(ico)) return ico;
+  return logoPath();
+}
+
 function getAppIcon() {
-  const p = logoPath();
+  const p = iconFile();
   if (!fs.existsSync(p)) return null;
   const img = nativeImage.createFromPath(p);
   return img.isEmpty() ? null : img;
@@ -209,8 +221,12 @@ function createIsland() {
 
 function syncIslandVisibility() {
   const visible = store.get().islandVisible !== false;
-  if (visible) islandWin?.showInactive();
-  else islandWin?.hide();
+  if (visible) {
+    if (!islandWin || islandWin.isDestroyed()) createIsland();
+    islandWin?.showInactive();
+  } else {
+    islandWin?.hide();
+  }
 }
 
 function saveSettingsBounds() {
@@ -262,10 +278,11 @@ function createSettings() {
     minHeight: 550,
     show: false,
     frame: false,
+    skipTaskbar: false,
     autoHideMenuBar: true,
     backgroundColor: themeColor(),
     title: 'Guard Island',
-    icon: icon || undefined,
+    icon: iconFile(),
     webPreferences: prefs('settings.js')
   });
   settingsWin.setMenuBarVisibility(false);
@@ -273,7 +290,10 @@ function createSettings() {
   if (icon) settingsWin.setIcon(icon);
   settingsWin.loadFile(path.join(__dirname, '..', 'renderer', 'settings.html'));
   settingsWin.once('ready-to-show', () => {
-    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.show();
+    if (!settingsWin || settingsWin.isDestroyed()) return;
+    const ic = getAppIcon();
+    if (ic) settingsWin.setIcon(ic);
+    settingsWin.show();
   });
   settingsWin.webContents.on('did-fail-load', (_e, code, desc) => {
     log.warn('settings-load', { code, desc });
@@ -508,10 +528,9 @@ function lineageAllowed(proc, entries) {
 
 function handleNewProcess(proc) {
   const cfg = store.get();
-  if (!sessionUnlocked) return;
   if (!cfg.processGate) return;
   if (!canAct()) return;
-  if (Date.now() - startedAt < 2500) return;
+  if (Date.now() - startedAt < 2000) return;
   fillProc(proc);
   const why = lineageAllowed(proc, cfg.allowlist || []);
   if (why) {
@@ -671,11 +690,22 @@ function stopWatchdog() {
   killWatchdogProcess();
 }
 
+function watchdogPidPath() {
+  return path.join(app.getPath('userData'), 'watchdog.pid');
+}
+
 function killWatchdogProcess() {
   if (watchdogProc && watchdogProc.pid) {
     try { process.kill(watchdogProc.pid); } catch {}
   }
   watchdogProc = null;
+  try {
+    const prev = Number(fs.readFileSync(watchdogPidPath(), 'utf8'));
+    if (prev) {
+      try { process.kill(prev); } catch {}
+    }
+  } catch {}
+  try { fs.unlinkSync(watchdogPidPath()); } catch {}
 }
 
 function protectOurProcesses() {
@@ -693,21 +723,37 @@ function startWatchdog() {
   killWatchdogProcess();
   try { fs.unlinkSync(cleanExitPath()); } catch {}
   touchHeartbeat();
-  const src = path.join(__dirname, 'watchdog.js');
-  const script = path.join(app.getPath('userData'), 'watchdog.js');
-  try { fs.copyFileSync(src, script); } catch {}
-  watchdogProc = spawn(process.execPath, [
-    fs.existsSync(script) ? script : src,
-    String(process.pid),
-    appExecutablePath(),
-    app.getPath('userData')
+  const exe = String(appExecutablePath()).replace(/'/g, "''");
+  const hb = heartbeatPath().replace(/'/g, "''");
+  const cl = cleanExitPath().replace(/'/g, "''");
+  const ps = [
+    "$ErrorActionPreference='SilentlyContinue'",
+    'while ($true) {',
+    '  Start-Sleep -Milliseconds 1200',
+    `  if (Test-Path '${cl}') { exit 0 }`,
+    `  if (-not (Test-Path '${hb}')) { continue }`,
+    `  $age = (Get-Date) - (Get-Item '${hb}').LastWriteTime`,
+    '  if ($age.TotalSeconds -lt 3.5) { continue }',
+    `  if (Test-Path '${cl}') { exit 0 }`,
+    `  Start-Process -FilePath '${exe}'`,
+    '  exit 0',
+    '}'
+  ].join('; ');
+  watchdogProc = spawn('powershell.exe', [
+    '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-Command', ps
   ], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     detached: true,
     stdio: 'ignore',
     windowsHide: true
   });
   watchdogProc.unref();
+  const wpid = watchdogProc.pid;
+  if (wpid) {
+    try { fs.writeFileSync(watchdogPidPath(), String(wpid)); } catch {}
+    setTimeout(() => {
+      try { protectPid(wpid); } catch {}
+    }, 400);
+  }
 }
 
 function markCleanExit() {
@@ -718,18 +764,12 @@ function markCleanExit() {
 }
 
 function syncSelfProtect() {
-  if (!sessionUnlocked) {
-    markCleanExit();
-    startHeartbeat();
-    return;
-  }
-  const on = store.get().armed === true;
   startHeartbeat();
-  if (on) {
+  if (store.get().armed === true) {
     startWatchdog();
     setTimeout(() => {
-      if (store.get().armed && sessionUnlocked) protectOurProcesses();
-    }, 3000);
+      if (store.get().armed) protectOurProcesses();
+    }, 4000);
     if (!protectTimer) {
       protectTimer = setInterval(() => {
         if (!watchdogAlive()) startWatchdog();
@@ -745,7 +785,6 @@ function syncSelfProtect() {
 
 function unlockSession() {
   sessionUnlocked = true;
-  startedAt = Date.now();
   if (!islandWin || islandWin.isDestroyed()) createIsland();
   applyConfig();
 }
@@ -769,7 +808,7 @@ function applyConfig() {
   const cfg = store.get();
   applyAutostart(cfg.autostart);
   syncSelfProtect();
-  if (!sessionUnlocked) {
+  if (!cfg.armed) {
     stopUsb();
     bridge.offProcess();
     fileGuard?.stop();
@@ -777,16 +816,17 @@ function applyConfig() {
       clearInterval(remoteTimer);
       remoteTimer = null;
     }
+    syncIslandVisibility();
     broadcast();
     return;
   }
   registerHotkey();
-  syncSelfProtect();
   if (cfg.usbGuard) startUsb(); else stopUsb();
   startProcessGate();
   startFileGuard();
   startRemoteWatch();
   syncFaceWindow();
+  if ((!islandWin || islandWin.isDestroyed()) && cfg.islandVisible !== false) createIsland();
   syncIslandVisibility();
   broadcast();
 }
@@ -867,9 +907,10 @@ function downloadFile(url, dest) {
 function wireIpc() {
   ipcMain.handle('get-state', () => publicState());
   ipcMain.handle('setup-account', (_e, payload) => {
-    store.setupAccount(payload || {});
+    const recoveryKey = store.setupAccount(payload || {});
+    vaultKey = recoveryKey;
     unlockSession();
-    return publicState();
+    return { ...publicState(), recoveryKey };
   });
   ipcMain.handle('login', (_e, { username, password }) => {
     if (!store.checkLogin(username, password)) {
@@ -878,9 +919,19 @@ function wireIpc() {
     unlockSession();
     return publicState();
   });
-  ipcMain.handle('set-config', (_e, patch) => {
+  ipcMain.handle('set-config', async (_e, patch) => {
     requireSession();
-    const next = store.set(patch || {});
+    const p = { ...(patch || {}) };
+    const needsAuth = Object.keys(p).some((k) => GUARD_KEYS.has(k));
+    if (needsAuth) {
+      await confirmSettingsAuth({
+        currentPassword: p.currentPassword,
+        useHello: Boolean(p.useHello)
+      });
+    }
+    delete p.currentPassword;
+    delete p.useHello;
+    const next = store.set(p);
     applyConfig();
     applyThemeToWindows();
     return next;
@@ -896,11 +947,34 @@ function wireIpc() {
     await confirmSettingsAuth({ currentPassword, useHello: Boolean(useHello) });
     if (kind === 'username') {
       store.setUsername(username);
+      if (vaultKey) {
+        try { store.putVaultField(vaultKey, 'username', username); } catch {}
+      }
     } else {
       store.setPassword(kind, password);
+      if (vaultKey) {
+        try { store.putVaultField(vaultKey, kind, password); } catch {}
+      }
     }
     broadcast();
     return store.secretsMeta();
+  });
+  ipcMain.handle('create-recovery-key', async (_e, payload) => {
+    requireSession();
+    await confirmSettingsAuth({
+      currentPassword: payload && payload.currentPassword,
+      useHello: Boolean(payload && payload.useHello)
+    });
+    const recoveryKey = store.createRecoveryKey();
+    vaultKey = recoveryKey;
+    broadcast();
+    return { recoveryKey };
+  });
+  ipcMain.handle('reveal-vault', (_e, recoveryKey) => {
+    requireSession();
+    const plain = store.revealVault(recoveryKey);
+    vaultKey = String(recoveryKey || '').trim().toUpperCase();
+    return plain;
   });
   ipcMain.handle('windows-hello', async () => requestWindowsHello());
   ipcMain.handle('check-password', (_e, { kind, password }) => store.checkPassword(kind, password));
@@ -1075,9 +1149,9 @@ app.whenReady().then(() => {
   startedAt = Date.now();
   wireIpc();
   startHeartbeat();
-  try { fs.writeFileSync(cleanExitPath(), String(Date.now())); } catch {}
   createTray();
   createSettings();
+  applyConfig();
   powerMonitor.on('shutdown', () => {
     markCleanExit();
     allowQuit = true;

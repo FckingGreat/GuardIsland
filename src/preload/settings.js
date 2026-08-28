@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('guard', {
   setupAccount: (payload) => ipcRenderer.invoke('setup-account', payload),
   login: (username, password) => ipcRenderer.invoke('login', { username, password }),
   setPassword: (payload) => ipcRenderer.invoke('set-password', payload),
+  createRecoveryKey: (payload) => ipcRenderer.invoke('create-recovery-key', payload),
+  revealVault: (recoveryKey) => ipcRenderer.invoke('reveal-vault', recoveryKey),
   checkPassword: (kind, password) => ipcRenderer.invoke('check-password', { kind, password }),
   windowsHello: () => ipcRenderer.invoke('windows-hello'),
   tailscale: () => ipcRenderer.invoke('tailscale-status'),

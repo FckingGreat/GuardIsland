@@ -1,6 +1,6 @@
 {
   "name": "guardisland",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Персональный охранный слой для своего Windows ПК: Dynamic Island, камера, USB, процессы, Tailscale",
   "main": "src/main/index.js",
   "author": "Mattew",
@@ -53,7 +53,7 @@
         }
       ],
       "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,

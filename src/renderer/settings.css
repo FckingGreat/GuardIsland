@@ -186,6 +186,10 @@ form.wide { margin-bottom: 10px; }
   z-index: 50;
 }
 .gate[hidden] { display: none; }
+#authModal, #keyModal, #revealModal {
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.72);
+}
 .gate-card {
   width: 360px;
   background: var(--surface);

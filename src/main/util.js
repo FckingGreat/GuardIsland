@@ -46,7 +46,12 @@ const SYSTEM_NAMES = new Set([
 const INTERPRETERS = new Set([
   'cmd.exe', 'powershell.exe', 'pwsh.exe', 'wscript.exe', 'cscript.exe',
   'mshta.exe', 'msiexec.exe', 'bash.exe', 'python.exe', 'pythonw.exe',
-  'hh.exe'
+  'hh.exe', 'rundll32.exe', 'regsvr32.exe'
+]);
+
+const PACKAGE_LAUNCHERS = new Set([
+  'msiexec.exe', 'rundll32.exe', 'regsvr32.exe', 'mshta.exe',
+  'wscript.exe', 'cscript.exe', 'hh.exe'
 ]);
 
 const ALWAYS_ALLOW_NAMES = new Set([
@@ -162,23 +167,36 @@ function parentIsTrusted(parentName, parentPath, ppid) {
   return false;
 }
 
+function isPackageLauncher(name) {
+  return PACKAGE_LAUNCHERS.has(String(name || '').toLowerCase());
+}
+
 function shouldIgnoreProcess(proc, extraAllow, mode = 'relaxed') {
   const n = String(proc.name || '').toLowerCase();
   const exePath = proc.path || '';
   if (isOwnProcess(exePath, n)) return true;
   if (proc.ppid && Number(proc.ppid) === process.pid) return true;
   if (ALWAYS_ALLOW_NAMES.has(n)) return true;
-  if (isWindowsTree(exePath)) return true;
-  if (isMicrosoftName(n)) return true;
-  if (isSystemPath(exePath)) return true;
   const extras = extraAllow || [];
   const exe = path.basename(exePath || n).toLowerCase();
   if (extras.some((x) => String(x).toLowerCase() === exe || String(x).toLowerCase() === n)) {
     return true;
   }
+  if (isPackageLauncher(n)) {
+    const pn = String(proc.parentName || '').toLowerCase();
+    if (TRUSTED_PARENTS.has(pn)) return true;
+    if (proc.ppid && Number(proc.ppid) === process.pid) return true;
+    return false;
+  }
+  if (isWindowsTree(exePath)) return true;
+  if (isMicrosoftName(n)) return true;
+  if (isSystemPath(exePath)) return true;
+  if (parentIsTrusted(proc.parentName, proc.parentPath, proc.ppid) && isWindowsTree(proc.parentPath || '')) {
+    return true;
+  }
   const relaxed = mode !== 'strict';
   if (relaxed) {
-    if (!exePath) return true;
+    if (!exePath) return SYSTEM_NAMES.has(n);
     if (isInstalledAppPath(exePath)) return true;
     if (!isSuspiciousPath(exePath)) return true;
     return false;

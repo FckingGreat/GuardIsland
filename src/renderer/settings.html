@@ -184,11 +184,10 @@
 
       <section id="panic" class="tab">
         <h1>Пароли</h1>
-        <p class="lead">Сменить логин или любой пароль можно только после пароля настроек или Windows Hello. Сохранённые значения посмотреть нельзя.</p>
+        <p class="lead">Сменить логин или любой пароль — только после пароля настроек. Ключ восстановления создаётся один раз: сохраните его, чтобы потом посмотреть пароли.</p>
         <form data-kind="username" class="wide">
           <h3>Логин входа в приложение</h3>
           <input class="inp" id="loginUserField" type="text" placeholder="новый логин" autocomplete="off" />
-          <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
           <div class="form-actions">
             <button type="button" class="btn" data-hello>Windows Hello</button>
             <button class="btn btn-pri">Сохранить логин</button>
@@ -199,7 +198,6 @@
           <form data-kind="loginPassword">
             <h3>Пароль входа</h3>
             <input class="inp" type="password" placeholder="новый пароль входа" autocomplete="off" />
-            <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
             <div class="form-actions">
               <button type="button" class="btn" data-hello>Windows Hello</button>
               <button class="btn btn-pri">Сохранить</button>
@@ -209,7 +207,6 @@
           <form data-kind="appPin">
             <h3>Пароль настроек</h3>
             <input class="inp" type="password" placeholder="новый пароль настроек" autocomplete="off" />
-            <input class="inp" type="password" data-confirm placeholder="текущий пароль настроек" autocomplete="off" />
             <div class="form-actions">
               <button type="button" class="btn" data-hello>Windows Hello</button>
               <button class="btn btn-pri">Сохранить</button>
@@ -220,7 +217,6 @@
             <h3>Пароль запуска и выхода</h3>
             <p class="hint" style="margin:0 0 8px">Тот же пароль на новый процесс и на выход из приложения.</p>
             <input class="inp" type="password" placeholder="новый пароль" autocomplete="off" />
-            <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
             <div class="form-actions">
               <button type="button" class="btn" data-hello>Windows Hello</button>
               <button class="btn btn-pri">Сохранить</button>
@@ -230,7 +226,6 @@
           <form data-kind="panicPassword">
             <h3>Пароль паники</h3>
             <input class="inp" type="password" placeholder="новый пароль" autocomplete="off" />
-            <input class="inp" type="password" data-confirm placeholder="пароль настроек" autocomplete="off" />
             <div class="form-actions">
               <button type="button" class="btn" data-hello>Windows Hello</button>
               <button class="btn btn-pri">Сохранить</button>
@@ -238,6 +233,14 @@
             <span class="ok" data-flag="hasPanicPassword"></span>
           </form>
         </div>
+        <h2 class="subh">Ключ восстановления</h2>
+        <p class="lead">Один ключ, чтобы потом открыть все пароли. Храните его отдельно. После установки новой версии старые пароли и настройки остаются в этом же профиле Windows.</p>
+        <p class="hint" id="recoveryStatus"></p>
+        <div class="split">
+          <button type="button" class="btn btn-pri" id="recoveryCreate">Создать / заменить ключ</button>
+          <button type="button" class="btn" id="recoveryReveal">Показать пароли по ключу</button>
+        </div>
+        <div id="vaultBox" class="remote-box" hidden></div>
       </section>
 
       <section id="about" class="tab">
@@ -245,7 +248,8 @@
         <ul class="about">
           <li>Guard Island — охранный слой для вашего компьютера.</li>
           <li>Выход из приложения — тот же пароль, что на запуск программ.</li>
-          <li>Пока охрана вкл, процесс нельзя снять обычным пользователем из диспетчера. Убийство с правами администратора блокирует Windows и поднимает приложение снова.</li>
+          <li>Пока охрана вкл, обычный End task процесс не снимает. Если убьют — приложение поднимается снова, без блокировки Windows.</li>
+          <li>Обновление установщиком не трогает пароли и настройки: они в профиле Windows, не в папке программы.</li>
           <li>Лог: <code id="logPath"></code></li>
           <li>Контакт: <a href="https://t.me/fcking_great_bot">Telegram @fcking_great_bot</a></li>
         </ul>
@@ -273,6 +277,36 @@
       <input class="inp" id="setupPin2" type="password" placeholder="повторите пароль настроек" autocomplete="off" />
       <p class="gate-err" id="setupErr"></p>
       <button class="btn btn-pri" id="setupBtn">Создать и войти</button>
+    </div>
+  </div>
+  <div id="authModal" class="gate" hidden>
+    <div class="gate-card">
+      <h2>Пароль настроек</h2>
+      <p id="authWhy">Подтвердите изменение</p>
+      <input class="inp" id="authPin" type="password" placeholder="пароль настроек" autocomplete="off" />
+      <p class="gate-err" id="authErr"></p>
+      <button class="btn btn-pri" id="authOk">Продолжить</button>
+      <button class="btn" id="authHello">Windows Hello</button>
+      <button class="btn" id="authCancel">Отмена</button>
+    </div>
+  </div>
+  <div id="keyModal" class="gate" hidden>
+    <div class="gate-card">
+      <h2>Сохраните ключ</h2>
+      <p>Покажите его только себе. Потом им можно открыть все пароли. Повторно ключ не показывается.</p>
+      <input class="inp" id="keyValue" type="text" readonly />
+      <button class="btn" id="keyCopy">Скопировать</button>
+      <button class="btn btn-pri" id="keyOk">Я сохранил ключ</button>
+    </div>
+  </div>
+  <div id="revealModal" class="gate" hidden>
+    <div class="gate-card">
+      <h2>Ключ восстановления</h2>
+      <p>Вставьте ключ, который сохранили при создании</p>
+      <input class="inp" id="revealKey" type="text" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" />
+      <p class="gate-err" id="revealErr"></p>
+      <button class="btn btn-pri" id="revealOk">Показать пароли</button>
+      <button class="btn" id="revealCancel">Отмена</button>
     </div>
   </div>
   <script src="settings.js"></script>

@@ -97,6 +97,52 @@ function assertPassword(password) {
   return String(password);
 }
 
+function makeRecoveryKey() {
+  const hex = crypto.randomBytes(10).toString('hex').toUpperCase();
+  return `${hex.slice(0, 5)}-${hex.slice(5, 10)}-${hex.slice(10, 15)}-${hex.slice(15, 20)}`;
+}
+
+function vaultKeyBytes(recoveryKey) {
+  return crypto.scryptSync(String(recoveryKey).trim().toUpperCase(), 'guardisland-vault-v1', 32);
+}
+
+function encryptVault(plain, recoveryKey) {
+  const key = vaultKeyBytes(recoveryKey);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const data = Buffer.concat([cipher.update(JSON.stringify(plain || {}), 'utf8'), cipher.final()]);
+  return {
+    iv: iv.toString('hex'),
+    tag: cipher.getAuthTag().toString('hex'),
+    data: data.toString('hex')
+  };
+}
+
+function decryptVault(blob, recoveryKey) {
+  if (!blob || !blob.iv || !blob.tag || !blob.data) {
+    throw new Error('Хранилище паролей пусто');
+  }
+  try {
+    const key = vaultKeyBytes(recoveryKey);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(blob.iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(blob.tag, 'hex'));
+    const out = Buffer.concat([decipher.update(Buffer.from(blob.data, 'hex')), decipher.final()]);
+    return JSON.parse(out.toString('utf8'));
+  } catch {
+    throw new Error('Неверный ключ восстановления');
+  }
+}
+
+function emptyVault() {
+  return {
+    username: '',
+    loginPassword: '',
+    appPin: '',
+    processPassword: '',
+    panicPassword: ''
+  };
+}
+
 function createStore(app) {
   const cfgFile = configPath(app);
   const secFile = secretsPath(app);
@@ -109,7 +155,9 @@ function createStore(app) {
     appPin: null,
     processPassword: null,
     panicPassword: null,
-    faceDescriptor: null
+    faceDescriptor: null,
+    recoveryHash: null,
+    vault: null
   });
 
   function persist() {
@@ -146,7 +194,8 @@ function createStore(app) {
         hasLoginPassword: Boolean(secrets.loginPassword),
         hasAccount: Boolean(normalizeUsername(secrets.username) && secrets.loginPassword),
         username: normalizeUsername(secrets.username),
-        hasFace: Array.isArray(secrets.faceDescriptor) && secrets.faceDescriptor.length > 0
+        hasFace: Array.isArray(secrets.faceDescriptor) && secrets.faceDescriptor.length > 0,
+        hasRecoveryKey: Boolean(secrets.recoveryHash && secrets.vault)
       };
     },
     setupAccount({ username, loginPassword, settingsPassword }) {
@@ -160,8 +209,17 @@ function createStore(app) {
       } else if (!secrets.appPin) {
         throw new Error('Задайте пароль настроек');
       }
+      const recoveryKey = makeRecoveryKey();
+      secrets.recoveryHash = hashPassword(recoveryKey);
+      secrets.vault = encryptVault({
+        ...emptyVault(),
+        username: secrets.username,
+        loginPassword: String(loginPassword),
+        appPin: String(settingsPassword || '')
+      }, recoveryKey);
       config.firstRunDone = true;
       persist();
+      return recoveryKey;
     },
     checkLogin(username, password) {
       if (!this.hasAccount()) return false;
@@ -180,6 +238,35 @@ function createStore(app) {
       }
       secrets[kind] = hashPassword(assertPassword(password));
       persist();
+    },
+    createRecoveryKey() {
+      const recoveryKey = makeRecoveryKey();
+      secrets.recoveryHash = hashPassword(recoveryKey);
+      let plain = emptyVault();
+      plain.username = this.getUsername();
+      secrets.vault = encryptVault(plain, recoveryKey);
+      persist();
+      return recoveryKey;
+    },
+    putVaultField(recoveryKey, field, value) {
+      if (!secrets.recoveryHash || !verifyPassword(String(recoveryKey).trim().toUpperCase(), secrets.recoveryHash)) {
+        throw new Error('Неверный ключ восстановления');
+      }
+      const plain = { ...emptyVault(), ...decryptVault(secrets.vault, recoveryKey) };
+      if (field === 'username') plain.username = String(value || '');
+      else plain[field] = String(value || '');
+      secrets.vault = encryptVault(plain, recoveryKey);
+      persist();
+    },
+    revealVault(recoveryKey) {
+      const key = String(recoveryKey || '').trim().toUpperCase();
+      if (!secrets.recoveryHash) {
+        throw new Error('Ключ ещё не создан');
+      }
+      if (!verifyPassword(key, secrets.recoveryHash)) {
+        throw new Error('Неверный ключ восстановления');
+      }
+      return { ...emptyVault(), ...decryptVault(secrets.vault, key) };
     },
     checkPassword(kind, password) {
       return verifyPassword(String(password || ''), secrets[kind]);
