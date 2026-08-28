@@ -162,8 +162,6 @@ function parentIsTrusted(parentName, parentPath, ppid) {
   if (ppid && Number(ppid) === process.pid) return true;
   const n = String(parentName || '').toLowerCase();
   if (TRUSTED_PARENTS.has(n)) return true;
-  if (isInterpreter(n)) return false;
-  if (parentPath && isSystemPath(parentPath) && !isInterpreter(n)) return true;
   return false;
 }
 

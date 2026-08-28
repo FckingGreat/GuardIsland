@@ -532,6 +532,7 @@ function handleNewProcess(proc) {
   if (!canAct()) return;
   if (Date.now() - startedAt < 2000) return;
   fillProc(proc);
+  if (!proc.path) return;
   const why = lineageAllowed(proc, cfg.allowlist || []);
   if (why) {
     if (why === 'session') sessionAllowedPids.add(proc.pid);
@@ -672,11 +673,21 @@ function stopHeartbeat() {
   }
 }
 
-function watchdogAlive() {
-  if (!watchdogProc || !watchdogProc.pid) return false;
+function pidExists(pid) {
+  const n = Number(pid);
+  if (!n) return false;
   try {
-    process.kill(watchdogProc.pid, 0);
+    process.kill(n, 0);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+function watchdogAlive() {
+  if (pidExists(watchdogProc && watchdogProc.pid)) return true;
+  try {
+    return pidExists(fs.readFileSync(watchdogPidPath(), 'utf8'));
   } catch {
     return false;
   }
@@ -718,6 +729,10 @@ function protectOurProcesses() {
   }
 }
 
+function watchdogScriptPath() {
+  return path.join(app.getPath('userData'), 'watchdog.ps1');
+}
+
 function startWatchdog() {
   if (watchdogAlive()) return;
   killWatchdogProcess();
@@ -726,33 +741,37 @@ function startWatchdog() {
   const exe = String(appExecutablePath()).replace(/'/g, "''");
   const hb = heartbeatPath().replace(/'/g, "''");
   const cl = cleanExitPath().replace(/'/g, "''");
-  const ps = [
-    "$ErrorActionPreference='SilentlyContinue'",
+  const script = [
+    "$ErrorActionPreference = 'SilentlyContinue'",
+    `$hb = '${hb}'`,
+    `$cl = '${cl}'`,
+    `$exe = '${exe}'`,
     'while ($true) {',
-    '  Start-Sleep -Milliseconds 1200',
-    `  if (Test-Path '${cl}') { exit 0 }`,
-    `  if (-not (Test-Path '${hb}')) { continue }`,
-    `  $age = (Get-Date) - (Get-Item '${hb}').LastWriteTime`,
-    '  if ($age.TotalSeconds -lt 3.5) { continue }',
-    `  if (Test-Path '${cl}') { exit 0 }`,
-    `  Start-Process -FilePath '${exe}'`,
-    '  exit 0',
+    '  Start-Sleep -Milliseconds 1500',
+    '  if (Test-Path $cl) { exit 0 }',
+    '  if (-not (Test-Path $hb)) { continue }',
+    '  $age = (Get-Date) - (Get-Item $hb).LastWriteTime',
+    '  if ($age.TotalSeconds -lt 8) { continue }',
+    '  if (Test-Path $cl) { exit 0 }',
+    '  Start-Process -FilePath $exe',
     '}'
-  ].join('; ');
+  ].join('\r\n');
+  try { fs.writeFileSync(watchdogScriptPath(), script); } catch (e) {
+    log?.warn('watchdog-script', String(e));
+    return;
+  }
   watchdogProc = spawn('powershell.exe', [
-    '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-Command', ps
+    '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass',
+    '-File', watchdogScriptPath()
   ], {
     detached: true,
     stdio: 'ignore',
     windowsHide: true
   });
-  watchdogProc.unref();
   const wpid = watchdogProc.pid;
+  watchdogProc.unref();
   if (wpid) {
     try { fs.writeFileSync(watchdogPidPath(), String(wpid)); } catch {}
-    setTimeout(() => {
-      try { protectPid(wpid); } catch {}
-    }, 400);
   }
 }
 
